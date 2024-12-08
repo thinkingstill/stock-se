@@ -4,7 +4,7 @@
 name: Stock Selection
 
 on:
-  workflow_dispatch:
+  #workflow_dispatch:
   schedule:
   # 每天北京时间下午 5 点运行
     - cron: "0 9 * * *"
