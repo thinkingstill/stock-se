@@ -76,6 +76,19 @@ def get_total_stock_info(total_industry_df):
     stock_detail_df['交易所'] = stock_detail_df['股票代码'].apply(lambda x : get_exchange(x))
     return stock_detail_df[['股票代码', '股票简称', '上市时间', '总股本', '流通股', '行业', '交易所']]
 
+def get_xueqiu_hot():
+    '''
+        获取雪球每天关注、评论、交易热度数据
+    '''
+    follow_df = ak.stock_hot_follow_xq(symbol="最热门")
+    tweet_df = ak.stock_hot_tweet_xq(symbol="最热门")
+    tweet_df.rename(columns={'关注':'讨论'}, inplace=True)
+    deal_df = ak.stock_hot_deal_xq(symbol="最热门")
+    deal_df.rename(columns={'关注':'交易'}, inplace=True)
+    merge_df = pd.merge(follow_df, tweet_df, on=['股票代码', '股票简称', '最新价'])
+    final_df = pd.merge(merge_df, deal_df, on=['股票代码', '股票简称', '最新价'])
+    return final_df
+
 if __name__ == "__main__":
     
     # 执行命令
@@ -91,3 +104,9 @@ if __name__ == "__main__":
         stock_zh_a_spot_em_df['date'] = LATEST_EXCHAGE_DATE
         with open(f'stock_daily_{LATEST_EXCHAGE_DATE}.json', 'w', encoding='utf-8') as f:
             f.write(stock_zh_a_spot_em_df.to_json(orient='records', force_ascii=False))
+        
+        # 获取雪球每日热度数据
+        stock_hot_xueqiu_df = get_xueqiu_hot()
+        stock_hot_xueqiu_df['date'] = LATEST_EXCHAGE_DATE
+        with open(f'hot_daily_{LATEST_EXCHAGE_DATE}.json', 'w', encoding='utf-8') as f:
+            f.write(stock_hot_xueqiu_df.to_json(orient='records', force_ascii=False))
