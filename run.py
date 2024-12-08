@@ -1,5 +1,7 @@
 import akshare as ak
 import pandas as pd
+import plotly.express as px
+import json
 import sys
 import time
 
@@ -108,5 +110,26 @@ if __name__ == "__main__":
         # 获取雪球每日热度数据
         stock_hot_xueqiu_df = get_xueqiu_hot()
         stock_hot_xueqiu_df['date'] = LATEST_EXCHAGE_DATE
+        stock_hot_xueqiu_df_valid = stock_hot_xueqiu_df.query('关注.notna() and 讨论.notna() and 交易.notna()')
+        ## 匹配行业信息
+        industry_mapping = json.load(open('industry_mapping.json'))
+        stock_hot_xueqiu_df_valid['行业'] = stock_hot_xueqiu_df_valid['股票代码'].apply(lambda x : industry_mapping.get(x[-6:], ''))
+        ## 保存json数据
         with open(f'hot_daily_{LATEST_EXCHAGE_DATE}.json', 'w', encoding='utf-8') as f:
-            f.write(stock_hot_xueqiu_df.to_json(orient='records', force_ascii=False))
+            f.write(stock_hot_xueqiu_df_valid.to_json(orient='records', force_ascii=False))
+        
+        # 生成3D可视化图片
+        ## 添加散点图轨迹
+        fig = px.scatter_3d(stock_hot_xueqiu_df_valid,x='关注',y='讨论',z='交易',color = '行业', hover_name = '股票简称')
+        fig.update_traces(marker=dict(opacity=0.7))  # 设置透明度为0.7    
+
+        ## 设置布局，添加标题、坐标轴标签等
+        fig.update_layout(
+            title='A Stock Hot',
+            scene=dict(
+                xaxis_title='关注',
+                yaxis_title='讨论',
+                zaxis_title='交易'
+            )
+        )
+        fig.write_html(f'stock_hot_vis_{LATEST_EXCHAGE_DATE}.html')
