@@ -10,7 +10,7 @@ on:
     branches: [ "main" ]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   stock_daily:
@@ -39,8 +39,8 @@ jobs:
         
     - name: Configure Git
       run: |
-        git config user.name "thinkingstill"
-        git config user.email "thinkingstill@users.noreply.github.com"
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
         
     - name: Commit and push changes
       env:
