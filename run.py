@@ -100,7 +100,8 @@ if __name__ == "__main__":
     # 判断当前日是否是交易日
     LATEST_EXCHAGE_DATE = get_exchange_date()
     if TODAY_STR != LATEST_EXCHAGE_DATE:
-        print('今天非交易日!')
+        print(f'今天({TODAY_STR})非交易日!')
+        sys.exit()
     if opt == "daily":
         # 获取今日行情数据
         stock_zh_a_spot_em_df = ak.stock_zh_a_spot_em()
