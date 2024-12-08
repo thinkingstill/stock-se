@@ -4,10 +4,9 @@
 name: Stock Selection
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+  schedule:
+  # 每天北京时间下午 5 点运行
+    - cron: "0 9 * * *"
 
 permissions:
   contents: write
