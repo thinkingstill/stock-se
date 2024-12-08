@@ -47,9 +47,10 @@ jobs:
         
     - name: Configure Git
       run: |
-        git config --local user.email "thinkingstill@example.com"  # 替换为你的邮箱
-        git config --local user.name "thinkingstill"  # 替换为你的用户名
-
+        git config --local user.email "thinkingstill@example.com" 
+        git config --local user.name "thinkingstill"  
+        git remote set-url origin https://${{ secrets.GITHUB_TOKEN }}@github.com/thinkingstill/stock-se.git
+        
     - name: Commit and push changes
       run: |
         git add disk/*  
