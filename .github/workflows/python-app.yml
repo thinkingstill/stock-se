@@ -39,8 +39,8 @@ jobs:
         
     - name: Configure Git
       run: |
-        git config --local user.email "thinkingstill@example.com" 
-        git config --local user.name "thinkingstill"  
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
         
     - name: Commit and push changes
       env:
