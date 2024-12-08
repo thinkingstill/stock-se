@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 import json
 import sys
+import os
 import time
 
 TODAY_STR = time.strftime("%Y%m%d", time.localtime())
@@ -120,6 +121,7 @@ if __name__ == "__main__":
         
         # 生成3D可视化图片
         ## 添加散点图轨迹
+        print('开始执行可视化')
         fig = px.scatter_3d(stock_hot_xueqiu_df_valid,x='关注',y='讨论',z='交易',color = '行业', hover_name = '股票简称')
         fig.update_traces(marker=dict(opacity=0.7))  # 设置透明度为0.7    
 
@@ -132,4 +134,7 @@ if __name__ == "__main__":
                 zaxis_title='交易'
             )
         )
-        fig.write_html(f'stock_hot_vis_{LATEST_EXCHAGE_DATE}.html')
+        print('可视化完成')
+        today_viz_file = f'stock_hot_vis_{LATEST_EXCHAGE_DATE}.html'
+        fig.write_html(today_viz_file)
+        print(f'是否存在html文件{os.path.exists(today_viz_file)}')
