@@ -112,7 +112,7 @@ if __name__ == "__main__":
         stock_hot_xueqiu_df['date'] = LATEST_EXCHAGE_DATE
         stock_hot_xueqiu_df_valid = stock_hot_xueqiu_df.query('关注.notna() and 讨论.notna() and 交易.notna()')
         ## 匹配行业信息
-        industry_mapping = json.load(open('industry_mapping.json'))
+        industry_mapping = json.load(open('dist/industry_mapping.json'))
         stock_hot_xueqiu_df_valid['行业'] = stock_hot_xueqiu_df_valid['股票代码'].apply(lambda x : industry_mapping.get(x[-6:], ''))
         ## 保存json数据
         with open(f'hot_daily_{LATEST_EXCHAGE_DATE}.json', 'w', encoding='utf-8') as f:
