@@ -1,5 +1,6 @@
 import akshare as ak
 import pandas as pd
+import sys
 import time
 
 TODAY_STR = time.strftime("%Y%m%d", time.localtime())
@@ -76,5 +77,17 @@ def get_total_stock_info(total_industry_df):
     return stock_detail_df[['股票代码', '股票简称', '上市时间', '总股本', '流通股', '行业', '交易所']]
 
 if __name__ == "__main__":
-    if TODAY_STR != get_exchange_date():
+    
+    # 执行命令
+    opt = sys.argv[1]
+
+    # 判断当前日是否是交易日
+    LATEST_EXCHAGE_DATE = get_exchange_date()
+    if TODAY_STR != LATEST_EXCHAGE_DATE:
         print('今天非交易日!')
+    if opt == "daily":
+        # 获取今日行情数据
+        stock_zh_a_spot_em_df = ak.stock_zh_a_spot_em()
+        stock_zh_a_spot_em_df['date'] = LATEST_EXCHAGE_DATE
+        with open(f'stock_daily_{LATEST_EXCHAGE_DATE}.json', 'w', encoding='utf-8') as f:
+            f.write(stock_zh_a_spot_em_df.to_json(orient='records', force_ascii=False))
