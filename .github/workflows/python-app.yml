@@ -4,7 +4,7 @@
 name: Stock Selection
 
 on:
-  #workflow_dispatch:
+  workflow_dispatch:
   schedule:
   # 每天北京时间下午 5 点运行
     - cron: "0 9 * * *"
@@ -36,6 +36,8 @@ jobs:
       run: |
         mkdir -p disk
         mv *.json disk/
+        mkdir -p viz
+        mv *.html viz/
         
     - name: Configure Git
       run: |
