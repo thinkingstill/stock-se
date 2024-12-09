@@ -92,6 +92,12 @@ def get_xueqiu_hot():
     final_df = pd.merge(merge_df, deal_df, on=['股票代码', '股票简称', '最新价'])
     return final_df
 
+def min_max_normalize(column):
+    '''
+        最大最小归一化函数
+    '''
+    return round(((column - column.min()) / (column.max() - column.min()))*100, 1)
+
 if __name__ == "__main__":
     
     # 执行命令
@@ -115,7 +121,18 @@ if __name__ == "__main__":
         stock_hot_xueqiu_df_valid = stock_hot_xueqiu_df.query('关注.notna() and 讨论.notna() and 交易.notna()')
         ## 匹配行业信息
         industry_mapping = json.load(open('disk/industry_mapping.json'))
-        stock_hot_xueqiu_df_valid['行业'] = stock_hot_xueqiu_df_valid['股票代码'].apply(lambda x : industry_mapping.get(x[-6:], ''))
+        stock_hot_xueqiu_df_valid['行业'] = stock_hot_xueqiu_df_valid['股票代码'].apply(lambda x : industry_mapping.get(x[-6:], '缺失'))
+        stock_hot_xueqiu_df_valid['涨跌幅'] = stock_hot_xueqiu_df_valid['股票简称'].apply(lambda x : stock_zh_a_spot_em_df.query(f'名称 == "{x}"')['涨跌幅'].values[0] if len(stock_zh_a_spot_em_df.query(f'名称 == "{x}"')['涨跌幅'].values) > 0 else stock_zh_a_spot_em_df['涨跌幅'].min() - 0.1)
+        stock_hot_xueqiu_df_valid.rename(columns={
+            '关注' : '关注_r',
+            '讨论' : '讨论_r',
+            '交易' : '交易_r',
+            '涨跌幅' : '涨跌幅_r'
+        }, inplace = True)
+        stock_hot_xueqiu_df_valid['关注'] = min_max_normalize(stock_hot_xueqiu_df_valid['关注_r'])
+        stock_hot_xueqiu_df_valid['讨论'] = min_max_normalize(stock_hot_xueqiu_df_valid['讨论_r'])
+        stock_hot_xueqiu_df_valid['交易'] = min_max_normalize(stock_hot_xueqiu_df_valid['交易_r'])
+        stock_hot_xueqiu_df_valid['涨跌幅'] = min_max_normalize(stock_hot_xueqiu_df_valid['涨跌幅_r'])
         ## 保存json数据
         with open(f'hot_daily_{LATEST_EXCHAGE_DATE}.json', 'w', encoding='utf-8') as f:
             f.write(stock_hot_xueqiu_df_valid.to_json(orient='records', force_ascii=False))
@@ -123,18 +140,34 @@ if __name__ == "__main__":
         # 生成3D可视化图片
         ## 添加散点图轨迹
         print('开始执行可视化')
-        fig = px.scatter_3d(stock_hot_xueqiu_df_valid,x='关注',y='讨论',z='交易',color = '行业', hover_name = '股票简称')
-        fig.update_traces(marker=dict(opacity=0.7))  # 设置透明度为0.7    
-
-        ## 设置布局，添加标题、坐标轴标签等
+        fig = px.scatter_3d(
+            stock_hot_xueqiu_df_valid,
+            x='关注',
+            y='讨论',
+            z='涨跌幅',
+            color = '行业',
+            hover_name = '股票简称',
+            title='A股每日热度')
+        # 自定义 scene 和布局
         fig.update_layout(
-            title='A Stock Hot',
             scene=dict(
                 xaxis_title='关注',
                 yaxis_title='讨论',
-                zaxis_title='交易'
+                zaxis_title='涨跌幅'
             )
         )
+        fig.update_traces(
+            marker=dict(opacity=0.7),
+            customdata=stock_hot_xueqiu_df_valid[['关注_r', '讨论_r', '涨跌幅_r', '行业']],
+            hovertemplate=(
+                "名称: %{hovertext}<br>"
+                "关注: %{customdata[0]}<br>"
+                "讨论: %{customdata[1]}<br>"
+                "涨跌幅: %{customdata[2]}<br>"
+                "行业: %{customdata[3]}<extra></extra>" 
+            )
+            )
+
         print('可视化完成')
         today_viz_file = f'stock_hot_vis_{LATEST_EXCHAGE_DATE}.html'
         fig.write_html(today_viz_file)
