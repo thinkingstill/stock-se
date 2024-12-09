@@ -107,7 +107,7 @@ if __name__ == "__main__":
     LATEST_EXCHAGE_DATE = get_exchange_date()
     if TODAY_STR != LATEST_EXCHAGE_DATE:
         print(f'今天({TODAY_STR})非交易日!')
-        sys.exit()
+        # sys.exit()
     if opt == "daily":
         # 获取今日行情数据
         stock_zh_a_spot_em_df = ak.stock_zh_a_spot_em()
@@ -126,13 +126,11 @@ if __name__ == "__main__":
         stock_hot_xueqiu_df_valid.rename(columns={
             '关注' : '关注_r',
             '讨论' : '讨论_r',
-            '交易' : '交易_r',
-            '涨跌幅' : '涨跌幅_r'
+            '交易' : '交易_r'
         }, inplace = True)
         stock_hot_xueqiu_df_valid['关注'] = min_max_normalize(stock_hot_xueqiu_df_valid['关注_r'])
         stock_hot_xueqiu_df_valid['讨论'] = min_max_normalize(stock_hot_xueqiu_df_valid['讨论_r'])
         stock_hot_xueqiu_df_valid['交易'] = min_max_normalize(stock_hot_xueqiu_df_valid['交易_r'])
-        stock_hot_xueqiu_df_valid['涨跌幅'] = min_max_normalize(stock_hot_xueqiu_df_valid['涨跌幅_r'])
         ## 保存json数据
         with open(f'hot_daily_{LATEST_EXCHAGE_DATE}.json', 'w', encoding='utf-8') as f:
             f.write(stock_hot_xueqiu_df_valid.to_json(orient='records', force_ascii=False))
@@ -156,17 +154,7 @@ if __name__ == "__main__":
                 zaxis_title='涨跌幅'
             )
         )
-        fig.update_traces(
-            marker=dict(opacity=0.7),
-            customdata=stock_hot_xueqiu_df_valid[['关注_r', '讨论_r', '涨跌幅_r', '行业']],
-            hovertemplate=(
-                "名称: %{hovertext}<br>"
-                "关注: %{customdata[0]}<br>"
-                "讨论: %{customdata[1]}<br>"
-                "涨跌幅: %{customdata[2]}<br>"
-                "行业: %{customdata[3]}<extra></extra>" 
-            )
-            )
+        fig.update_traces(marker=dict(opacity=0.7))
 
         print('可视化完成')
         today_viz_file = f'stock_hot_vis_{LATEST_EXCHAGE_DATE}.html'
