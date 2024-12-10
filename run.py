@@ -109,9 +109,12 @@ if __name__ == "__main__":
         print(f'今天({TODAY_STR})非交易日!')
         # sys.exit()
     if opt == "daily":
+        ## 行业信息
+        industry_mapping = json.load(open('disk/industry_mapping.json'))
         # 获取今日行情数据
         stock_zh_a_spot_em_df = ak.stock_zh_a_spot_em()
         stock_zh_a_spot_em_df['date'] = LATEST_EXCHAGE_DATE
+        stock_zh_a_spot_em_df['行业'] = stock_zh_a_spot_em_df['名称'].apply(lambda x : industry_mapping.get(x[-6:], '未知'))
         with open(f'stock_daily_{LATEST_EXCHAGE_DATE}.json', 'w', encoding='utf-8') as f:
             f.write(stock_zh_a_spot_em_df.to_json(orient='records', force_ascii=False))
         
@@ -119,8 +122,7 @@ if __name__ == "__main__":
         stock_hot_xueqiu_df = get_xueqiu_hot()
         stock_hot_xueqiu_df['date'] = LATEST_EXCHAGE_DATE
         stock_hot_xueqiu_df_valid = stock_hot_xueqiu_df.query('关注.notna() and 讨论.notna() and 交易.notna()')
-        ## 匹配行业信息
-        industry_mapping = json.load(open('disk/industry_mapping.json'))
+
         stock_hot_xueqiu_df_valid['行业'] = stock_hot_xueqiu_df_valid['股票代码'].apply(lambda x : industry_mapping.get(x[-6:], '缺失'))
         stock_hot_xueqiu_df_valid['涨跌幅'] = stock_hot_xueqiu_df_valid['股票简称'].apply(lambda x : stock_zh_a_spot_em_df.query(f'名称 == "{x}"')['涨跌幅'].values[0] if len(stock_zh_a_spot_em_df.query(f'名称 == "{x}"')['涨跌幅'].values) > 0 else stock_zh_a_spot_em_df['涨跌幅'].min() - 0.1)
         stock_hot_xueqiu_df_valid.rename(columns={
