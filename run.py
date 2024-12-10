@@ -114,7 +114,7 @@ if __name__ == "__main__":
         # 获取今日行情数据
         stock_zh_a_spot_em_df = ak.stock_zh_a_spot_em()
         stock_zh_a_spot_em_df['date'] = LATEST_EXCHAGE_DATE
-        stock_zh_a_spot_em_df['行业'] = stock_zh_a_spot_em_df['名称'].apply(lambda x : industry_mapping.get(x[-6:], '未知'))
+        stock_zh_a_spot_em_df['行业'] = stock_zh_a_spot_em_df['代码'].apply(lambda x : industry_mapping.get(x[-6:], '未知'))
         with open(f'stock_daily_{LATEST_EXCHAGE_DATE}.json', 'w', encoding='utf-8') as f:
             f.write(stock_zh_a_spot_em_df.to_json(orient='records', force_ascii=False))
         
