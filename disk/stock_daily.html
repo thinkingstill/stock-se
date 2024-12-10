@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stock Daily</title>
+  <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.global.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts-gl/dist/echarts-gl.min.js"></script>
+  <style>
+    body {
+      background-color: #f5f5f5;
+      color: #000;
+      font-family: Arial, sans-serif;
+    }
+
+    #app {
+      width: 100%;
+      height: 95vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #chart {
+      flex: 1;
+    }
+
+    .controls {
+      display: flex;
+      gap: 1rem;
+      margin: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    select {
+      padding: 0.5rem;
+      font-size: 1rem;
+      background-color: #fff;
+      color: #000;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    label {
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .industry-dropdown {
+      position: relative;
+      min-width: 200px;
+    }
+
+    .dropdown-header {
+      border: 1px solid #ccc;
+      padding: 0.5rem;
+      cursor: pointer;
+      background-color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .dropdown-list {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      width: 100%;
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      background-color: white;
+      z-index: 1000;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .dropdown-item {
+      padding: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .dropdown-item:hover {
+      background-color: #f0f0f0;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <div class="controls">
+      <label>
+        X轴:
+        <select v-model="config.xAxis3D" @change="updateChart">
+          <option v-for="field in fieldNames" :key="field" :value="field">{{ field }}</option>
+        </select>
+      </label>
+      <label>
+        Y轴:
+        <select v-model="config.yAxis3D" @change="updateChart">
+          <option v-for="field in fieldNames" :key="field" :value="field">{{ field }}</option>
+        </select>
+      </label>
+      <label>
+        Z轴:
+        <select v-model="config.zAxis3D" @change="updateChart">
+          <option v-for="field in fieldNames" :key="field" :value="field">{{ field }}</option>
+        </select>
+      </label>
+      <label>
+        大小:
+        <select v-model="config.symbolSize" @change="updateChart">
+          <option v-for="field in fieldNames" :key="field" :value="field">{{ field }}</option>
+        </select>
+      </label>
+
+      <div class="industry-dropdown">
+        <div class="dropdown-header" @click="toggleDropdown">
+          <span>行业选择 ({{ selectedIndustries.length }}/{{ uniqueIndustries.length }})</span>
+          <span>▼</span>
+        </div>
+        <div v-if="isDropdownOpen" class="dropdown-list">
+          <div class="dropdown-item">
+            <input type="checkbox" :checked="isAllIndustriesSelected" @change="toggleAllIndustries">
+            全选
+          </div>
+          <div v-for="industry in uniqueIndustries" :key="industry" class="dropdown-item">
+            <input type="checkbox" :value="industry" v-model="selectedIndustries" @change="updateIndustrySelection">
+            {{ industry }}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="chart"></div>
+  </div>
+
+  <script>
+    const { createApp, onMounted, ref, computed } = Vue;
+
+    createApp({
+      setup() {
+        const chart = ref(null);
+        const stockData = ref([]);
+        const fieldNames = ref([]);
+        const config = ref({
+          name : '名称',
+          xAxis3D: '最新价',
+          yAxis3D: '涨跌幅',
+          zAxis3D: '成交量',
+          color: '行业',
+          symbolSize: '流通市值'
+        });
+
+        // 行业筛选相关
+        const uniqueIndustries = ref([]);
+        const selectedIndustries = ref([]);
+        const isDropdownOpen = ref(false);
+        let color_gen = {};
+
+        // 数据归一化处理函数
+        const normalize = (value, min, max) => {
+          return (value - min) / (max - min);
+        };
+
+        // 获取数组的最大最小值
+        const getMinMax = (arr) => {
+          return {
+            min: Math.min(...arr),
+            max: Math.max(...arr)
+          };
+        };
+
+        // 生成分段区间
+        const generatePieces = (min, max, count = 5) => {
+          const range = max - min;
+          const step = range / count;
+          return Array.from({ length: count }, (_, i) => ({
+            min: min + step * i,
+            max: i === count - 1 ? max : min + step * (i + 1),
+            color: `rgba(${Math.round(255 * (i / count))}, 100, ${Math.round(255 * (1 - i / count))}, 0.7)`
+          }));
+        };
+
+        const isAllIndustriesSelected = computed(() =>
+          selectedIndustries.value.length === uniqueIndustries.value.length
+        );
+
+        const toggleDropdown = () => {
+          isDropdownOpen.value = !isDropdownOpen.value;
+        };
+
+        const toggleAllIndustries = () => {
+          if (isAllIndustriesSelected.value) {
+            selectedIndustries.value = [];
+          } else {
+            selectedIndustries.value = [...uniqueIndustries.value];
+          }
+          updateChart();
+        };
+
+        const updateIndustrySelection = () => {
+          updateChart();
+        };
+
+        // 点击外部关闭下拉框
+        const handleClickOutside = (event) => {
+          const dropdown = document.querySelector('.industry-dropdown');
+          if (dropdown && !dropdown.contains(event.target)) {
+            isDropdownOpen.value = false;
+          }
+        };
+
+        // 映射彩虹色
+        const generateRandomColor = () => {
+          const r = Math.floor(Math.random() * 256); // 0到255的随机整数
+          const g = Math.floor(Math.random() * 256);
+          const b = Math.floor(Math.random() * 256);
+          return `rgba(${r},${g},${b},0.5)`;
+        };
+
+        function generateColorDict(categories) {
+          const colorDict = {};
+          const usedColors = [];
+
+          const isColorRepeated = (newColor, usedColors) => {
+            for (const usedColor of usedColors) {
+              if (newColor === usedColor) {
+                return true;
+              }
+            }
+            return false;
+          };
+
+          for (let i = 0; i < categories.length; i++) {
+            let color;
+            do {
+              color = generateRandomColor();
+            } while (isColorRepeated(color, usedColors));
+
+            usedColors.push(color);
+            colorDict[categories[i]] = color;
+          }
+
+          return colorDict;
+        }
+
+
+        // 初始化图表
+        const initChart = () => {
+          const chartDom = document.getElementById('chart');
+          chart.value = echarts.init(chartDom);
+          document.addEventListener('click', handleClickOutside);
+        };
+
+        // 更新图表
+        const updateChart = () => {
+          const maxValues = { 
+            symbolSize: -Infinity 
+          };
+          // 根据选中的行业过滤数据
+          const filteredData = selectedIndustries.value.length > 0
+            ? stockData.value.filter(item =>
+              selectedIndustries.value.includes(item['行业'])
+            )
+            : stockData.value;
+
+          // 获取 x, y, z 轴的原始数据
+          const axisData = {
+            x: filteredData.map(item => item[config.value.xAxis3D]),
+            y: filteredData.map(item => item[config.value.yAxis3D]),
+            z: filteredData.map(item => item[config.value.zAxis3D])
+          };
+
+          // 计算最大最小值
+          const minMax = {
+            x: getMinMax(axisData.x),
+            y: getMinMax(axisData.y),
+            z: getMinMax(axisData.z)
+          };
+
+          // 生成分段
+          const pieces = {
+            x: generatePieces(minMax.x.min, minMax.x.max),
+            y: generatePieces(minMax.y.min, minMax.y.max),
+            z: generatePieces(minMax.z.min, minMax.z.max)
+          };
+
+          const chartData = filteredData.map(item => {
+            let x = item[config.value.xAxis3D];
+            let y = item[config.value.yAxis3D];
+            let z = item[config.value.zAxis3D];
+            const industry = item[config.value.color];
+            const color = color_gen[industry];
+            const symbolSize = item[config.value.symbolSize];
+
+            // 归一化处理
+            if (Math.abs(minMax.x.max - minMax.x.min) > 100) {
+              x = normalize(x, minMax.x.min, minMax.x.max);
+            }
+            if (Math.abs(minMax.y.max - minMax.y.min) > 100) {
+              y = normalize(y, minMax.y.min, minMax.y.max);
+            }
+            if (Math.abs(minMax.z.max - minMax.z.min) > 100) {
+              z = normalize(z, minMax.z.min, minMax.z.max);
+            }
+
+            maxValues.symbolSize = Math.max(maxValues.symbolSize, symbolSize);
+            
+            return {
+              value: [x, y, z, industry, color, symbolSize],
+              originalValues: {
+                x: item[config.value.xAxis3D],
+                y: item[config.value.yAxis3D],
+                z: item[config.value.zAxis3D],
+                name : item[config.value.name],
+              }
+            };
+          });
+
+          chart.value.setOption({
+            tooltip: {
+              formatter: (params) => {
+                const originalValues = params.data.originalValues;
+                const [, , , industry, color, symbolSize] = params.data.value;
+                return `
+                  ${config.value.name}: ${originalValues.name}<br/>
+                  ${config.value.xAxis3D}: ${originalValues.x}<br/>
+                  ${config.value.yAxis3D}: ${originalValues.y}<br/>
+                  ${config.value.zAxis3D}: ${originalValues.z}<br/>
+                  ${config.value.color}: ${industry}<br/>
+                  ${config.value.symbolSize}: ${symbolSize}
+                `;
+              }
+            },
+
+            xAxis3D: {
+              name: config.value.xAxis3D,
+              type: 'value',
+              scale: true
+            },
+            yAxis3D: {
+              name: config.value.yAxis3D,
+              type: 'value',
+              scale: true
+            },
+            zAxis3D: {
+              name: config.value.zAxis3D,
+              type: 'value',
+              scale: true
+            },
+            grid3D: {
+              viewControl: {
+                rotateSensitivity: 1,
+                zoomSensitivity: 1,
+                panSensitivity: 1,
+                autoRotate: false,
+                damping: 0.8,
+                distance: 200
+              },
+              axisLine: { lineStyle: { color: '#000' } },
+              axisPointer: { lineStyle: { color: '#333' } }
+            },
+            series: [
+              {
+                type: 'scatter3D',
+                dimensions: [
+                  config.value.xAxis3D,
+                  config.value.yAxis3D,
+                  config.value.zAxis3D,
+                  config.value.color,
+                  config.value.symbolSize
+                ],
+                data: chartData,
+                symbolSize: function (params) {
+                  return Math.max(10,(params[5]/maxValues.symbolSize)*50)
+                },
+                itemStyle: {
+                  borderWidth: 1,
+                  borderColor: 'rgba(0,0,0,0.5)',
+                  color: function (params) {
+                    return params.data.value[4]
+                  } 
+                },
+                emphasis: {
+                  itemStyle: { color: '#000' }
+                }
+              }
+            ]
+          })
+        }
+
+          // 加载数据
+          onMounted(async () => {
+            const url = window.location.href;
+            const searchParams = new URLSearchParams(url.split('?')[1]);
+            const date = searchParams.get('date'); 
+            const res = await fetch(`stock_daily_${date}.json`);
+            stockData.value = await res.json();
+            fieldNames.value = Object.keys(stockData.value[0]);
+
+            // 获取唯一行业列表
+            uniqueIndustries.value = [...new Set(
+              stockData.value.map(item => item['行业'])
+            )];
+            color_gen = generateColorDict(uniqueIndustries.value);
+
+            // 初始全选行业
+            selectedIndustries.value = [...uniqueIndustries.value];
+
+            initChart();
+            updateChart();
+
+            // 组件卸载时移除事件监听
+            return () => {
+              document.removeEventListener('click', handleClickOutside);
+            };
+          });
+
+          return {
+            config,
+            fieldNames,
+            updateChart,
+            uniqueIndustries,
+            selectedIndustries,
+            toggleDropdown,
+            isDropdownOpen,
+            toggleAllIndustries,
+            updateIndustrySelection,
+            isAllIndustriesSelected
+          };
+        }
+      }).mount('#app');
+  </script>
+</body>
+
+</html>
