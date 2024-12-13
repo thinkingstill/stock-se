@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Stock Daily</title>
-  <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus/dist/index.css">
   <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.global.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/element-plus"></script>
   <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
@@ -59,7 +59,7 @@
       </el-col>
     </el-row>
       <el-row>
-        <el-form-item label="大小" style="width: 10%;">
+        <el-form-item label="大小" style="width: 20%;">
           <el-select v-model="config.symbolSize" @change="updateChart">
             <el-option v-for="field in fieldNames" :key="field" :label="field" :value="field"></el-option>
           </el-select>
@@ -67,12 +67,21 @@
       </el-row>
       <el-row>
         <el-form-item label="行业" style="width: 90%;">
-          <el-checkbox v-model="isAllSelected" @change="toggleAllIndustries">全选/取消</el-checkbox> 
           <el-select
             v-model="selectedIndustries"
             multiple
+            collapse-tags
+            :max-collapse-tags="20"
             placeholder="请选择"
           >
+            <template #header>
+              <el-checkbox
+                v-model="isAllSelected"
+                @change="toggleAllIndustries"
+              >
+                All
+              </el-checkbox>
+            </template>
             <el-option
               v-for="item in uniqueIndustries"
               :key="item"
@@ -287,7 +296,7 @@
               return `
                 ${config.value.name}: ${originalValues.name}<br/>
                 ${config.value.color}: ${industry}<br/>
-                ${config.value.symbolSize}: ${(symbolSize/100000000).toFixed(3)}亿<br/>
+                ${config.value.symbolSize}: ${ config.value.symbolSize.includes('市值') ? (symbolSize/100000000).toFixed(3) + '亿' : symbolSize}<br/>
                 ${config.value.price}: ${originalValues.price}<br/>
                 ${config.value.xAxis3D}: ${originalValues.x}<br/>
                 ${config.value.yAxis3D}: ${originalValues.y}<br/>
