@@ -59,11 +59,25 @@
       </el-col>
     </el-row>
       <el-row>
-        <el-form-item label="大小" style="width: 20%;">
-          <el-select v-model="config.symbolSize" @change="updateChart">
-            <el-option v-for="field in fieldNames" :key="field" :label="field" :value="field"></el-option>
-          </el-select>
-        </el-form-item>
+        <el-col :span="8">
+          <el-form-item label="大小" style="width: 80%;">
+            <el-select v-model="config.symbolSize" @change="updateChart">
+              <el-option v-for="field in fieldNames" :key="field" :label="field" :value="field"></el-option>
+            </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col :span="12">
+          <el-form-item label="交易所" style="width: 80%;">
+            <el-select 
+              v-model="config.exchange_select"  
+              multiple 
+              collapse-tags
+              :max-collapse-tags="3"
+              @change="updateChart">
+              <el-option v-for="prefix in config.exchange" :key="prefix" :label="prefix" :value="prefix"></el-option>
+            </el-select>
+          </el-form-item>
+        </el-col>
       </el-row>
       <el-row>
         <el-form-item label="行业" style="width: 90%;">
@@ -107,6 +121,7 @@
       const x_range = ref([0,0]);
       const y_range = ref([0,0]);
       const z_range = ref([0,0]);
+
       const config = ref({
         name : '名称',
         xAxis3D: '量比',
@@ -114,7 +129,9 @@
         zAxis3D: '涨跌幅',
         color: '行业',
         price : '最新价',
-        symbolSize: '流通市值'
+        symbolSize: '流通市值',
+        exchange_select : ['上海证券交易所主板','深圳证券交易所主板'],
+        exchange : ['上海证券交易所科创板','北京证券交易所','上海证券交易所科创板（CDR公司）','上海证券交易所主板','深圳证券交易所主板','深圳证券交易所中小板','深圳证券交易所创业板','新三板','无法识别的股票代码']
       });
 
       // 行业筛选相关
@@ -174,6 +191,33 @@
       watch(selectedIndustries, () => {
         updateChart();
       });
+      
+      // 计算交易所
+      function getExchange(code) {
+          if (code.startsWith('688')) {
+              return '上海证券交易所科创板';
+          } else if (code.startsWith('920')) {
+              return '北京证券交易所';
+          } else if (code.startsWith('689')) {
+              return '上海证券交易所科创板（CDR公司）';
+          } else if (code.startsWith('600') || code.startsWith('601') || code.startsWith('603') || code.startsWith('605')) {
+              return '上海证券交易所主板';
+          } else if (code.startsWith('000')) {
+              return '深圳证券交易所主板';
+          } else if (code.startsWith('001') || code.startsWith('002')) {
+              return '深圳证券交易所中小板';
+          } else if (code.startsWith('003')) {
+              return '深圳证券交易所创业板';
+          } else if (code.startsWith('300') || code.startsWith('301')) {
+              return '深圳证券交易所创业板';
+          } else if (code.startsWith('8')) {
+              return '北京证券交易所';
+          } else if (code.startsWith('430')) {
+              return '新三板';
+          } else {
+              return '无法识别的股票代码';
+          }
+      }
 
       // 映射彩虹色
       const generateRandomColor = () => {
@@ -221,12 +265,18 @@
         const maxValues = { 
           symbolSize: -Infinity 
         };
+        // 根据选中的交易所过滤行业
+        const filteredData_exchange = config.value.exchange_select.length > 0
+          ? stockData.value.filter(item =>
+            config.value.exchange_select.includes(getExchange(item['代码']))
+          )
+          : stockData.value; 
         // 根据选中的行业过滤数据
         const filteredData_industry = selectedIndustries.value.length > 0
-          ? stockData.value.filter(item =>
+          ? filteredData_exchange.filter(item =>
             selectedIndustries.value.includes(item['行业'])
           )
-          : stockData.value;
+          : filteredData_exchange.value;
 
         const  filteredData = filteredData_industry.filter(item => {
             let x = item[config.value.xAxis3D];
