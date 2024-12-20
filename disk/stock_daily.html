@@ -110,8 +110,8 @@
 </body>
 
 <script>
-  const { createApp, onMounted, ref, reactive, computed, watch} = Vue;
-
+  const { createApp, onMounted, ref, reactive, computed, watch, EI} = Vue;
+  const { ElMessage, ElMessageBox } =  ElementPlus;
   createApp({
     setup() {
       const chart = ref(null);
@@ -257,10 +257,26 @@
       // 初始化图表
       const initChart = () => {
         const chartDom = document.getElementById('chart');
-        chart.value = echarts.init(chartDom);
+        chart.value = echarts.init(chartDom, null, {
+          useCoarsePointer : true,
+          renderer: 'canvas',
+          useDirtyRect: false
+        });
         chart.value.on('click', function (params) {
-          console.log('点击事件被触发，参数为：', params.data.originalValues.name)
           window.open(`https://www.baidu.com/s?wd=${params.data.originalValues.name}股票`, '_blank')
+        })
+
+        chart.value.on('mouseover', function (params) {
+          ElMessageBox.alert(
+            `<a href="https://www.baidu.com/s?wd=${params.data.originalValues.name}股票" target="_blank" style="color: #409EFF; text-decoration: underline;">
+            ${params.data.originalValues.name}
+            </a>`,
+            params.data.originalValues.name,
+            {
+              confirmButtonText: 'OK',
+              dangerouslyUseHTMLString: true, // 允许使用 HTML 内容
+            }
+          );
         })
       };
 
