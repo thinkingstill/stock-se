@@ -258,6 +258,10 @@
       const initChart = () => {
         const chartDom = document.getElementById('chart');
         chart.value = echarts.init(chartDom);
+        chart.value.on('click', function (params) {
+          console.log('点击事件被触发，参数为：', params.data.originalValues.name)
+          window.open(`https://www.baidu.com/s?wd=${params.data.originalValues.name}股票`, '_blank')
+        })
       };
 
       // 更新图表
