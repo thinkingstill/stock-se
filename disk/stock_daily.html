@@ -38,7 +38,8 @@
           <el-select v-model="config.xAxis3D" @change="updateChart">
             <el-option v-for="field in fieldNames" :key="field" :label="field" :value="field"></el-option>
           </el-select>
-          <el-slider v-model="x_range" range :step="Math.round((rawminMax.x.max - rawminMax.x.min)/20)" show-stops :min="rawminMax.x.min" :max="rawminMax.x.max" @change="sliderChange('xAxis3D')" />
+          <el-slider v-model="x_range" range :step="Math.round((rawminMax.x.max - rawminMax.x.min)/20)" show-stops
+            :min="rawminMax.x.min" :max="rawminMax.x.max" @change="sliderChange('xAxis3D')" />
         </el-form-item>
       </el-col>
       <el-col :span="8">
@@ -46,7 +47,8 @@
           <el-select v-model="config.yAxis3D" @change="updateChart">
             <el-option v-for="field in fieldNames" :key="field" :label="field" :value="field"></el-option>
           </el-select>
-          <el-slider v-model="y_range" range :step="Math.round((rawminMax.y.max - rawminMax.y.min)/20)" show-stops :min="rawminMax.y.min" :max="rawminMax.y.max" @change="sliderChange('yAxis3D')" />
+          <el-slider v-model="y_range" range :step="Math.round((rawminMax.y.max - rawminMax.y.min)/20)" show-stops
+            :min="rawminMax.y.min" :max="rawminMax.y.max" @change="sliderChange('yAxis3D')" />
         </el-form-item>
       </el-col>
       <el-col :span="8">
@@ -54,84 +56,69 @@
           <el-select v-model="config.zAxis3D" @change="updateChart">
             <el-option v-for="field in fieldNames" :key="field" :label="field" :value="field"></el-option>
           </el-select>
-          <el-slider v-model="z_range" range :step="Math.round((rawminMax.z.max - rawminMax.z.min)/20)" show-stops :min="rawminMax.z.min" :max="rawminMax.z.max" @change="sliderChange('zAxis3D')" />
+          <el-slider v-model="z_range" range :step="Math.round((rawminMax.z.max - rawminMax.z.min)/20)" show-stops
+            :min="rawminMax.z.min" :max="rawminMax.z.max" @change="sliderChange('zAxis3D')" />
         </el-form-item>
       </el-col>
     </el-row>
-      <el-row>
-        <el-col :span="8">
-          <el-form-item label="大小" style="width: 80%;">
-            <el-select v-model="config.symbolSize" @change="updateChart">
-              <el-option v-for="field in fieldNames" :key="field" :label="field" :value="field"></el-option>
-            </el-select>
-          </el-form-item>
-        </el-col>
-        <el-col :span="12">
-          <el-form-item label="交易所" style="width: 80%;">
-            <el-select 
-              v-model="config.exchange_select"  
-              multiple 
-              collapse-tags
-              :max-collapse-tags="3"
-              @change="updateChart">
-              <el-option v-for="prefix in config.exchange" :key="prefix" :label="prefix" :value="prefix"></el-option>
-            </el-select>
-          </el-form-item>
-        </el-col>
-      </el-row>
-      <el-row>
-        <el-form-item label="行业" style="width: 90%;">
-          <el-select
-            v-model="selectedIndustries"
-            multiple
-            collapse-tags
-            :max-collapse-tags="20"
-            placeholder="请选择"
-          >
-            <template #header>
-              <el-checkbox
-                v-model="isAllSelected"
-                @change="toggleAllIndustries"
-              >
-                All
-              </el-checkbox>
-            </template>
-            <el-option
-              v-for="item in uniqueIndustries"
-              :key="item"
-              :label="item"
-              :value="item"
-            />
+    <el-row>
+      <el-col :span="8">
+        <el-form-item label="大小" style="width: 80%;">
+          <el-select v-model="config.symbolSize" @change="updateChart">
+            <el-option v-for="field in fieldNames" :key="field" :label="field" :value="field"></el-option>
           </el-select>
         </el-form-item>
-      </el-row>
+      </el-col>
+      <el-col :span="12">
+        <el-form-item label="交易所" style="width: 80%;">
+          <el-select v-model="config.exchange_select" multiple collapse-tags :max-collapse-tags="3"
+            @change="updateChart">
+            <el-option v-for="prefix in config.exchange" :key="prefix" :label="prefix" :value="prefix"></el-option>
+          </el-select>
+        </el-form-item>
+      </el-col>
+    </el-row>
+    <el-row>
+      <el-form-item label="行业" style="width: 90%;">
+        <el-select v-model="selectedIndustries" multiple collapse-tags :max-collapse-tags="20" placeholder="请选择"
+          @change="updateChart">
+          <template #header>
+            <el-checkbox v-model="isAllSelected" @change="toggleAllIndustries">
+              All
+            </el-checkbox>
+          </template>
+          <el-option v-for="item in uniqueIndustries" :key="item" :label="item" :value="item" />
+        </el-select>
+      </el-form-item>
+    </el-row>
     <div id="chart"></div>
   </div>
 </body>
 
 <script>
-  const { createApp, onMounted, ref, reactive, computed, watch, EI} = Vue;
-  const { ElMessage, ElMessageBox } =  ElementPlus;
+  const { createApp, onMounted, ref, reactive, computed } = Vue;
+  const { ElMessage, ElMessageBox } = ElementPlus;
   createApp({
     setup() {
       const chart = ref(null);
+      const mode = ref(false);
       const stockData = ref([]);
       const fieldNames = ref([]);
       const isAllSelected = ref(true);
-      const x_range = ref([0,0]);
-      const y_range = ref([0,0]);
-      const z_range = ref([0,0]);
+      const x_range = ref([0, 0]);
+      const y_range = ref([0, 0]);
+      const z_range = ref([0, 0]);
 
       const config = ref({
-        name : '名称',
+        name: '名称',
         xAxis3D: '量比',
         yAxis3D: '换手率',
         zAxis3D: '涨跌幅',
         color: '行业',
-        price : '最新价',
+        price: '最新价',
         symbolSize: '流通市值',
-        exchange_select : ['上海证券交易所主板','深圳证券交易所主板'],
-        exchange : ['上海证券交易所科创板','北京证券交易所','上海证券交易所科创板（CDR公司）','上海证券交易所主板','深圳证券交易所主板','深圳证券交易所中小板','深圳证券交易所创业板','新三板','无法识别的股票代码']
+        exchange_select: ['上海证券交易所主板', '深圳证券交易所主板'],
+        exchange: ['上海证券交易所科创板', '北京证券交易所', '上海证券交易所科创板（CDR公司）', '上海证券交易所主板', '深圳证券交易所主板', '深圳证券交易所中小板', '深圳证券交易所创业板', '新三板', '无法识别的股票代码']
       });
 
       // 行业筛选相关
@@ -152,13 +139,13 @@
         };
       };
 
-      const rawminMax =  computed(() => {
+      const rawminMax = computed(() => {
         if (stockData.value.length == 0) {
           return {
-              x : {min : 0, max : 10},
-              y : {min : 0, max : 10},
-              z : {min : 0, max : 10}
-            }
+            x: { min: 0, max: 10 },
+            y: { min: 0, max: 10 },
+            z: { min: 0, max: 10 }
+          }
         } else {
           let x = getMinMax(stockData.value.map(item => item[config.value.xAxis3D]))
           let y = getMinMax(stockData.value.map(item => item[config.value.yAxis3D]))
@@ -166,7 +153,7 @@
           x_range.value = [x.min, x.max]
           y_range.value = [y.min, y.max]
           z_range.value = [z.min, z.max]
-          return {x,y,z}
+          return { x, y, z }
         }
       })
       // 筛选行业
@@ -177,8 +164,14 @@
       const toggleAllIndustries = () => {
         if (!isAllSelected.value) {
           selectedIndustries.value = [];
+          chart.value.setOption({
+            series: [{
+              data: []  // 清除数据点，保持坐标系
+            }]
+          });
         } else {
           selectedIndustries.value = [...uniqueIndustries.value];
+          updateChart();
         }
       };
 
@@ -187,36 +180,31 @@
         updateChart();
       }
 
-      // 监听selectedOptions的变化，更新isAllSelected的值
-      watch(selectedIndustries, () => {
-        updateChart();
-      });
-      
       // 计算交易所
       function getExchange(code) {
-          if (code.startsWith('688')) {
-              return '上海证券交易所科创板';
-          } else if (code.startsWith('920')) {
-              return '北京证券交易所';
-          } else if (code.startsWith('689')) {
-              return '上海证券交易所科创板（CDR公司）';
-          } else if (code.startsWith('600') || code.startsWith('601') || code.startsWith('603') || code.startsWith('605')) {
-              return '上海证券交易所主板';
-          } else if (code.startsWith('000')) {
-              return '深圳证券交易所主板';
-          } else if (code.startsWith('001') || code.startsWith('002')) {
-              return '深圳证券交易所中小板';
-          } else if (code.startsWith('003')) {
-              return '深圳证券交易所创业板';
-          } else if (code.startsWith('300') || code.startsWith('301')) {
-              return '深圳证券交易所创业板';
-          } else if (code.startsWith('8')) {
-              return '北京证券交易所';
-          } else if (code.startsWith('430')) {
-              return '新三板';
-          } else {
-              return '无法识别的股票代码';
-          }
+        if (code.startsWith('688')) {
+          return '上海证券交易所科创板';
+        } else if (code.startsWith('920')) {
+          return '北京证券交易所';
+        } else if (code.startsWith('689')) {
+          return '上海证券交易所科创板（CDR公司）';
+        } else if (code.startsWith('600') || code.startsWith('601') || code.startsWith('603') || code.startsWith('605')) {
+          return '上海证券交易所主板';
+        } else if (code.startsWith('000')) {
+          return '深圳证券交易所主板';
+        } else if (code.startsWith('001') || code.startsWith('002')) {
+          return '深圳证券交易所中小板';
+        } else if (code.startsWith('003')) {
+          return '深圳证券交易所创业板';
+        } else if (code.startsWith('300') || code.startsWith('301')) {
+          return '深圳证券交易所创业板';
+        } else if (code.startsWith('8')) {
+          return '北京证券交易所';
+        } else if (code.startsWith('430')) {
+          return '新三板';
+        } else {
+          return '无法识别的股票代码';
+        }
       }
 
       // 映射彩虹色
@@ -258,7 +246,7 @@
       const initChart = () => {
         const chartDom = document.getElementById('chart');
         chart.value = echarts.init(chartDom, null, {
-          useCoarsePointer : true,
+          useCoarsePointer: true,
           renderer: 'canvas',
           useDirtyRect: false
         });
@@ -267,30 +255,40 @@
         })
 
         chart.value.on('mouseover', function (params) {
-          ElMessageBox.alert(
-            `<a href="https://www.baidu.com/s?wd=${params.data.originalValues.name}股票" target="_blank" style="color: #409EFF; text-decoration: underline;">
-            ${params.data.originalValues.name}
-            </a>`,
-            params.data.originalValues.name,
-            {
-              confirmButtonText: 'OK',
-              dangerouslyUseHTMLString: true, // 允许使用 HTML 内容
-            }
-          );
+          if (mode.value) {
+            const originalValues = params.data.originalValues;
+            const [, , , industry, color, symbolSize] = params.data.value;
+            ElMessageBox.alert(
+              `${config.value.name}: <a href="https://www.baidu.com/s?wd=${originalValues.name}股票" target="_blank" style="color: #409EFF; text-decoration: underline;">
+            ${originalValues.name}</a><br/>
+            ${config.value.color}: ${industry}<br/>
+            ${config.value.symbolSize}: ${config.value.symbolSize.includes('市值') ? (symbolSize / 100000000).toFixed(3) + '亿' : symbolSize}<br/>
+            ${config.value.price}: ${originalValues.price}<br/>
+            ${config.value.xAxis3D}: ${originalValues.x}<br/>
+            ${config.value.yAxis3D}: ${originalValues.y}<br/>
+            ${config.value.zAxis3D}: ${originalValues.z}<br/>
+`,
+              params.data.originalValues.name,
+              {
+                confirmButtonText: 'OK',
+                dangerouslyUseHTMLString: true, // 允许使用 HTML 内容
+              }
+            );
+          }
         })
       };
 
       // 更新图表
       const updateChart = () => {
-        const maxValues = { 
-          symbolSize: -Infinity 
+        const maxValues = {
+          symbolSize: -Infinity
         };
         // 根据选中的交易所过滤行业
         const filteredData_exchange = config.value.exchange_select.length > 0
           ? stockData.value.filter(item =>
             config.value.exchange_select.includes(getExchange(item['代码']))
           )
-          : stockData.value; 
+          : stockData.value;
         // 根据选中的行业过滤数据
         const filteredData_industry = selectedIndustries.value.length > 0
           ? filteredData_exchange.filter(item =>
@@ -298,16 +296,16 @@
           )
           : filteredData_exchange.value;
 
-        const  filteredData = filteredData_industry.filter(item => {
-            let x = item[config.value.xAxis3D];
-            let y = item[config.value.yAxis3D];
-            let z = item[config.value.zAxis3D];
-            return   x >= x_range.value[0] 
-                  && x <= x_range.value[1] 
-                  && y >= y_range.value[0] 
-                  && y <= y_range.value[1]
-                  && z >= z_range.value[0] 
-                  && z <= z_range.value[1]
+        const filteredData = filteredData_industry.filter(item => {
+          let x = item[config.value.xAxis3D];
+          let y = item[config.value.yAxis3D];
+          let z = item[config.value.zAxis3D];
+          return x >= x_range.value[0]
+            && x <= x_range.value[1]
+            && y >= y_range.value[0]
+            && y <= y_range.value[1]
+            && z >= z_range.value[0]
+            && z <= z_range.value[1]
         })
 
         // 获取 x, y, z 轴的原始数据
@@ -332,7 +330,7 @@
           const industry = item[config.value.color];
           const color = color_gen[industry];
           const symbolSize = item[config.value.symbolSize];
-          
+
           // 归一化处理
           if (Math.abs(minMax.x.max - minMax.x.min) > 100) {
             x = normalize(x, minMax.x.min, minMax.x.max);
@@ -345,15 +343,15 @@
           }
 
           maxValues.symbolSize = Math.max(maxValues.symbolSize, symbolSize);
-          
+
           return {
             value: [x, y, z, industry, color, symbolSize],
             originalValues: {
               x: item[config.value.xAxis3D],
               y: item[config.value.yAxis3D],
               z: item[config.value.zAxis3D],
-              name : item[config.value.name],
-              price : item[config.value.price],
+              name: item[config.value.name],
+              price: item[config.value.price],
             }
           };
         });
@@ -366,7 +364,7 @@
               return `
                 ${config.value.name}: ${originalValues.name}<br/>
                 ${config.value.color}: ${industry}<br/>
-                ${config.value.symbolSize}: ${ config.value.symbolSize.includes('市值') ? (symbolSize/100000000).toFixed(3) + '亿' : symbolSize}<br/>
+                ${config.value.symbolSize}: ${config.value.symbolSize.includes('市值') ? (symbolSize / 100000000).toFixed(3) + '亿' : symbolSize}<br/>
                 ${config.value.price}: ${originalValues.price}<br/>
                 ${config.value.xAxis3D}: ${originalValues.x}<br/>
                 ${config.value.yAxis3D}: ${originalValues.y}<br/>
@@ -414,7 +412,7 @@
               ],
               data: chartData,
               symbolSize: function (params) {
-                return Math.max(10,(params[5]/maxValues.symbolSize)*50)
+                return Math.max(10, (params[5] / maxValues.symbolSize) * 50)
               },
               itemStyle: {
                 borderWidth: 0,
@@ -423,65 +421,67 @@
                 },
                 color: function (params) {
                   return params.data.value[4]
-                } 
+                }
               },
               emphasis: {
-                itemStyle: { 
+                itemStyle: {
                   color: '#000'
-              }
+                }
               }
             }
           ]
         })
       }
 
-        // 加载数据
-        onMounted(async () => {
-          const url = window.location.href;
-          const searchParams = new URLSearchParams(url.split('?')[1]);
-          const date = searchParams.get('date'); 
-          const res = await fetch(`stock_daily_${date}.json`);
-          stockData.value = await res.json();
-          fieldNames.value = Object.keys(stockData.value[0]);
+      // 加载数据
+      onMounted(async () => {
+        const url = window.location.href;
+        const searchParams = new URLSearchParams(url.split('?')[1]);
+        const date = searchParams.get('date');
+        mode.value = searchParams.get('hover');
+        const res = await fetch(`stock_daily_${date}.json`);
+        stockData.value = await res.json();
+        fieldNames.value = Object.keys(stockData.value[0]);
 
-          let x = getMinMax(stockData.value.map(item => item[config.value.xAxis3D]))
-          let y = getMinMax(stockData.value.map(item => item[config.value.yAxis3D]))
-          let z = getMinMax(stockData.value.map(item => item[config.value.zAxis3D]))
-          x_range.value = [x.min, x.max]
-          y_range.value = [y.min, y.max]
-          z_range.value = [z.min, z.max]
+        let x = getMinMax(stockData.value.map(item => item[config.value.xAxis3D]))
+        let y = getMinMax(stockData.value.map(item => item[config.value.yAxis3D]))
+        let z = getMinMax(stockData.value.map(item => item[config.value.zAxis3D]))
+        x_range.value = [x.min, x.max]
+        y_range.value = [y.min, y.max]
+        z_range.value = [z.min, z.max]
 
-          // 获取唯一行业列表
-          uniqueIndustries.value = [...new Set(
-            stockData.value.map(item => item['行业'])
-          )];
-          color_gen = generateColorDict(uniqueIndustries.value);
+        // 获取唯一行业列表
+        uniqueIndustries.value = [...new Set(
+          stockData.value.map(item => item['行业'])
+        )];
+        color_gen = generateColorDict(uniqueIndustries.value);
 
-          // 初始全选行业
-          selectedIndustries.value = [...uniqueIndustries.value];
-          
-          initChart();
-          updateChart();
+        // 初始全选行业
+        selectedIndustries.value = [...uniqueIndustries.value];
 
-        });
-        
-        return {
-          config,
-          x_range,
-          y_range,
-          z_range,
-          rawminMax,
-          fieldNames,
-          isAllSelected,
-          updateChart,
-          uniqueIndustries,
-          selectedIndustries,
-          toggleAllIndustries,
-          isAllIndustriesSelected,
-          sliderChange
-        };
-      }
-    }).use(ElementPlus).mount('#app');
+        initChart();
+        updateChart();
+
+      });
+
+      return {
+        mode,
+        config,
+        x_range,
+        y_range,
+        z_range,
+        rawminMax,
+        fieldNames,
+        isAllSelected,
+        updateChart,
+        uniqueIndustries,
+        selectedIndustries,
+        toggleAllIndustries,
+        isAllIndustriesSelected,
+        sliderChange
+      };
+    }
+  }).use(ElementPlus).mount('#app');
 </script>
 </body>
 
