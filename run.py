@@ -170,7 +170,8 @@ if __name__ == "__main__":
         today_viz_file = f'stock_hot_vis_{LATEST_EXCHAGE_DATE}.html'
         fig.write_html(today_viz_file)
         print(f'是否存在html文件{os.path.exists(today_viz_file)}')
-
+        
+    if opt == "year":
         # 获取当日最高涨幅行业
         stock_basic_info = pd.read_pickle('disk/stock_basic_info.pkl')
         totla_stock_range = []
