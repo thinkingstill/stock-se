@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Daily</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-plus/dist/index.css">
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/element-plus"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts-gl/dist/echarts-gl.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #app {
+            width: 60%;
+            height: 100%;
+        }
+
+    </style>
+</head>
+<body>
+<div id="app">
+    <el-row>
+        <p>{{selectedIndustry}}</p>
+    </el-row>
+    <el-row v-for="(rowIdx, outerIndex) in Math.ceil(12 / 3)" :key="outerIndex">
+        <el-col :span="8" v-for="(colIdx, innerIndex) in 3" :key="innerIndex">
+            <div :id="`chart${outerIndex * 3 + colIdx}`" style="width: 100%; height: 50vh;">
+            </div>
+        </el-col>
+    </el-row>
+</div>
+</body>
+<script>
+    const { createApp, onMounted, ref, reactive } = Vue;
+    createApp({
+        setup() {
+            const charts = reactive({});
+            const data = ref([]);
+            const industryMap = ref({});
+            const industryMapRevert = ref({});
+            const selectedIndustry = ref(null);
+            let selected = false;
+            const fixedColorList = [
+                '#F0F0F0',  // 浅灰色
+                "#F44336",
+                "#E57373",
+                "#EF9A9A",
+                "#FF9800",
+                "#FFB74D",
+                "#FFCC80",
+                "#FFEB3B",
+                "#FFF176",
+                "#FFFF00",
+                "#4CAF50",
+                "#81C784",
+                "#A5D6A7",
+                "#2196F3",
+                "#64B5F6",
+                "#90CAF9",
+                "#9C27B0",
+                "#BA68C8",
+                "#E040FB",
+                "#E91E63",
+                "#F06292",
+                "#F8BBD0",
+                "#795548",
+                "#A1887F",
+                "#D7CCC8",
+                "#9E9E9E",
+                "#BDBDBD",
+                "#E0E0E0",
+                "#000000",
+                "#FFFFFF",
+                "#00BCD4",
+                "#26A69A",
+                "#4DB6AC",
+                "#1976D2",
+                "#3F51B5"                
+            ];
+            const initChart = (idx) => {
+                const chartDom = document.getElementById(`chart${idx}`);
+                const chartInstance = echarts.init(chartDom);
+                charts[`chart${idx}`] = chartInstance;
+
+                const option = {
+                    tooltip: {
+                        formatter: function (p) {
+                            const dateStr = p.data[0];
+                            const industry = data.value.find(item => item[0] === dateStr)[1];
+                            const industryName = industryMapRevert.value[industry];
+                            return `${dateStr}: ${industryName}`;
+                        }
+                    },
+                    calendar: [{
+                        orient: 'vertical',
+                        range: `2024-${idx}`,
+                        dayLabel: {
+                            firstDay: 1,
+                            nameMap: 'cn'
+                        },
+                        monthLabel: {
+                            nameMap: 'cn'
+                        },
+                        yearLabel: { show: false },
+                        cellSize: [40, 40]
+                    }],
+                    series: [{
+                        type: 'heatmap',
+                        coordinateSystem: 'calendar',
+                        calendarIndex: 0,
+                        data: data.value,
+                        itemStyle: {
+                            color: function (params) {
+                                return fixedColorList[params.data[1]]
+                            }
+                        }
+                    }]
+                };
+                chartInstance.setOption(option);
+                chartInstance.on('click', function (params) {
+                    selectedIndustry.value = industryMapRevert.value[params.data[1]]
+                    heatmapClick(params.data[1])
+                });
+            };
+
+            // 更新每个图标的颜色
+            function heatmapClick(industry_idx) {
+                selected = !selected
+                console.log(charts)
+                for (let key in charts) {
+                    let cur_config = charts[key].getOption();
+                    if (selected) {
+                        cur_config.series[0].itemStyle.color = function (params) {
+                            if ( params.data[1] == industry_idx) {
+                                return fixedColorList[params.data[1]]
+                            } else {
+                                return fixedColorList[0]
+                            }
+                        }     
+                    } else {
+                        cur_config.series[0].itemStyle.color = function (params) {
+                                return fixedColorList[params.data[1]]
+                        }   
+                    }                
+                    charts[key].setOption(cur_config)            
+                }
+            }
+
+            // 构造数据
+            function getCalendarData(year, rawData) {
+                const dataMap = {};
+                const industries = new Set();
+
+                rawData.forEach(item => {
+                    dataMap[item["日期"]] = item["行业"];
+                    industries.add(item["行业"]);
+                });
+
+                const tempIndustryMap = { "休市": 0 };
+                let currentNumber = 1;
+                industries.forEach(industry => {
+                    if (industry !== "休市") {
+                        tempIndustryMap[industry] = currentNumber++;
+                    }
+                });
+                const tempIndustryMapRevert = Object.fromEntries(
+                    Object.entries(tempIndustryMap).map(([key, value]) => [value, key])
+                );
+
+                const tempDate = new Date(year + '-01-01');
+                const end = new Date((+year + 1) + '-01-01');
+                const tempData = [];
+
+                while (tempDate < end) {
+                    const dateStr = tempDate.toISOString().split('T')[0];
+                    const industry = dataMap[dateStr] || '休市';
+                    tempData.push([
+                        dateStr,
+                        tempIndustryMap[industry]
+                    ]);
+                    tempDate.setDate(tempDate.getDate() + 1);
+                }
+                data.value = tempData;
+                industryMap.value = tempIndustryMap;
+                industryMapRevert.value = tempIndustryMapRevert;
+                console.log(industryMap.value)
+
+                return { data: tempData, industryMap: tempIndustryMap, industryMapRevert: tempIndustryMapRevert };
+            }
+
+            onMounted(async () => {
+                const url = window.location.href;
+                const searchParams = new URLSearchParams(url.split('?')[1]);
+                const date = searchParams.get('date');
+                try {
+                    const res = await fetch(`industry_top_${date}.json`);
+                    const rawData = await res.json();
+                    getCalendarData('2024', rawData);
+                    for (let index = 1; index <= 12; index++) {
+                        initChart(index);                        
+                    }
+                } catch (error) {
+                    console.error('Error loading data:', error);
+                }
+            });
+
+            return { 
+                charts,
+                selectedIndustry
+             };
+        }
+    }).use(ElementPlus).mount('#app');
+</script>
+</html>
