@@ -8,6 +8,13 @@ import time
 
 TODAY_STR = time.strftime("%Y%m%d", time.localtime())
 
+def get_industry_top(df):
+    '''
+        获取当天涨幅最高的行业
+    '''
+    res = df.groupby('行业')['涨跌幅'].sum().reset_index()
+    return res.nlargest(1, '涨跌幅').iloc[0,0]
+
 def get_exchange_date():
     '''
         获取数据最新的交易时间
@@ -162,3 +169,20 @@ if __name__ == "__main__":
         today_viz_file = f'stock_hot_vis_{LATEST_EXCHAGE_DATE}.html'
         fig.write_html(today_viz_file)
         print(f'是否存在html文件{os.path.exists(today_viz_file)}')
+
+        # 获取当日最高涨幅行业
+        stock_basic_info = pd.read_pickle('disk/stock_basic_info.pkl')
+        totla_stock_range = []
+        for idx in tqdm.tqdm(range(stock_basic_info.shape[0])):
+            code = stock_basic_info.loc[idx, '股票代码']
+            try:
+                tmp_df = ak.stock_zh_a_hist(symbol=code, period="daily", start_date="20240923", end_date='20241230', adjust="")
+            except Exception as e:
+                continue
+            totla_stock_range.append(tmp_df)
+        totla_stock__df = pd.concat(totla_stock_range)
+        merged_df = pd.merge(totla_stock__df, stock_basic_info, on='股票代码', how='left')
+        
+        result = merged_df.groupby('日期').apply(lambda x : get_industry_top(x)).reset_index(name="行业")
+        result['日期'] = result['日期'].apply(lambda x : x.strftime('%Y-%m-%d'))
+        result.to_json(f'./industry_top_{LATEST_EXCHAGE_DATE}.json',orient='records', force_ascii=False)
