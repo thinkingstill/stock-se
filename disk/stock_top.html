@@ -12,7 +12,7 @@
     <style>
         body {
             margin: 0;
-            padding: 20px;
+            padding: 10px;
             min-height: 100vh;
         }
 
@@ -23,18 +23,28 @@
         }
 
         .chart-container {
-            margin-bottom: 20px;
+            margin: 0 auto 20px;
+            padding: 0 10px;
+        }
+
+        .chart-wrapper {
+            width: 100%;
+            aspect-ratio: 1;
+            max-height: 400px;
         }
 
         @media (max-width: 768px) {
-            .el-col {
-                width: 100% !important;
+            body {
+                padding: 5px;
             }
-        }
+            
+            .chart-container {
+                width: 95%;
+                padding: 0;
+            }
 
-        @media (min-width: 769px) and (max-width: 1024px) {
-            .el-col {
-                width: 50% !important;
+            .chart-wrapper {
+                max-height: 300px;
             }
         }
     </style>
@@ -44,7 +54,7 @@
     <el-row>
         <p>{{selectedIndustry}}</p>
     </el-row>
-    <el-row :gutter="20">
+    <el-row :gutter="10" justify="center">
         <el-col 
             :xs="24" 
             :sm="24" 
@@ -52,9 +62,12 @@
             :lg="8" 
             v-for="index in 12" 
             :key="index"
+            class="is-flex is-justify-center"
         >
             <div class="chart-container">
-                <div :id="`chart${index}`" style="width: 100%; height: 50vh;"></div>
+                <div class="chart-wrapper">
+                    <div :id="`chart${index}`" style="width: 100%; height: 100%;"></div>
+                </div>
             </div>
         </el-col>
     </el-row>
@@ -131,7 +144,7 @@
                             nameMap: 'cn'
                         },
                         yearLabel: { show: false },
-                        cellSize: [40, 40]
+                        cellSize: ['auto', 'auto']
                     }],
                     series: [{
                         type: 'heatmap',
@@ -150,7 +163,12 @@
                     selectedIndustry.value = industryMapRevert.value[params.data[1]]
                     heatmapClick(params.data[1])
                 });
+
+                window.addEventListener('resize', () => {
+                    chartInstance.resize();
+                });
             };
+
 
             // 更新每个图标的颜色
             function heatmapClick(industry_idx) {
@@ -232,11 +250,10 @@
                     console.error('Error loading data:', error);
                 }
             });
-
             return { 
                 charts,
                 selectedIndustry
-             };
+            };
         }
     }).use(ElementPlus).mount('#app');
 </script>
