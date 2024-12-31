@@ -13,17 +13,30 @@
         body {
             margin: 0;
             padding: 20px;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            min-height: 100vh;
         }
 
         #app {
-            width: 60%;
-            height: 100%;
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
         }
 
+        .chart-container {
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .el-col {
+                width: 100% !important;
+            }
+        }
+
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .el-col {
+                width: 50% !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -31,14 +44,21 @@
     <el-row>
         <p>{{selectedIndustry}}</p>
     </el-row>
-    <el-row v-for="(rowIdx, outerIndex) in Math.ceil(12 / 3)" :key="outerIndex">
-        <el-col :span="8" v-for="(colIdx, innerIndex) in 3" :key="innerIndex">
-            <div :id="`chart${outerIndex * 3 + colIdx}`" style="width: 100%; height: 50vh;">
+    <el-row :gutter="20">
+        <el-col 
+            :xs="24" 
+            :sm="24" 
+            :md="12" 
+            :lg="8" 
+            v-for="index in 12" 
+            :key="index"
+        >
+            <div class="chart-container">
+                <div :id="`chart${index}`" style="width: 100%; height: 50vh;"></div>
             </div>
         </el-col>
     </el-row>
 </div>
-</body>
 <script>
     const { createApp, onMounted, ref, reactive } = Vue;
     createApp({
