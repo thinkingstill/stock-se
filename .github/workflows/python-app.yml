@@ -35,8 +35,10 @@ jobs:
     - name: MV output to disk directory
       run: |
         mkdir -p disk
+        touch test.json
         mv *.json disk/
         mkdir -p viz
+        touch test.html
         mv *.html viz/
         
     - name: Configure Git
