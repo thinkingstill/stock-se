@@ -115,7 +115,7 @@ if __name__ == "__main__":
     LATEST_EXCHAGE_DATE = get_exchange_date()
     if TODAY_STR != LATEST_EXCHAGE_DATE:
         print(f'今天({TODAY_STR})非交易日!')
-        # sys.exit()
+        sys.exit(0)
     if opt == "daily":
         ## 行业信息
         industry_mapping = json.load(open('disk/industry_mapping.json'))
