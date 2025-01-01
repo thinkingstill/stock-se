@@ -82,43 +82,8 @@
             const industryMapRevert = ref({});
             const selectedIndustry = ref(null);
             let selected = false;
-            const fixedColorList = [
-                '#F0F0F0',  // 浅灰色
-                "#F44336",
-                "#E57373",
-                "#EF9A9A",
-                "#FF9800",
-                "#FFB74D",
-                "#FFCC80",
-                "#FFEB3B",
-                "#FFF176",
-                "#FFFF00",
-                "#4CAF50",
-                "#81C784",
-                "#A5D6A7",
-                "#2196F3",
-                "#64B5F6",
-                "#90CAF9",
-                "#9C27B0",
-                "#BA68C8",
-                "#E040FB",
-                "#E91E63",
-                "#F06292",
-                "#F8BBD0",
-                "#795548",
-                "#A1887F",
-                "#D7CCC8",
-                "#9E9E9E",
-                "#BDBDBD",
-                "#E0E0E0",
-                "#000000",
-                "#FFFFFF",
-                "#00BCD4",
-                "#26A69A",
-                "#4DB6AC",
-                "#1976D2",
-                "#3F51B5"                
-            ];
+            let input_year = '2024';
+            const fixedColorList = ["#F0F0F0", "#FF5733", "#33FF57", "#5733FF", "#FF33E7", "#33E7FF", "#E7FF33", "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF", "#FF8C00", "#8C00FF", "#00FF8C", "#FF008C", "#8CFF00", "#008CFF", "#FF4500", "#4500FF", "#00FF45", "#FF0045", "#45FF00", "#0045FF", "#FF1493", "#1493FF", "#93FF14", "#FF1400", "#1400FF", "#00FF14", "#FF9933", "#9933FF", "#33FF99", "#FF6347", "#6347FF", "#47FF63", "#FFD700", "#D700FF", "#00FFD7", "#FFC0CB", "#C0CBFF", "#CBFFC0", "#FFB6C1", "#B6C1FF", "#C1FFB6", "#FFA07A", "#A07AFF", "#7AFFA0", "#228B22", "#8B2222", "#22228B", "#800080", "#008080", "#808000", "#DA70D6", "#70D6DA", "#D6DA70", "#3CB371", "#B3713C", "#713C B3", "#6A5ACD", "#5ACD6A", "#CD6A5A", "#9370DB", "#70DB93", "#DB9370", "#00CED1", "#CED100", "#D100CE", "#48D1CC", "#D1CC48", "#CC48D1", "#9ACD32", "#ACD39A", "#D39A AC", "#F08080", "#8080F0", "#80F080", "#7FFFD4", "#FFD47F", "#D47FFF", "#66CDAA", "#CDAA66", "#AA66CD", "#40E0D0", "#E0D040", "#D040E0", "#ADD8E6", "#D8E6AD", "#E6AD D8", "#F0E68C", "#E68C F0", "#8C F0E6", "#E0FFFF", "#FFFFE0", "#FFE0FF"];
             const initChart = (idx) => {
                 const chartDom = document.getElementById(`chart${idx}`);
                 const chartInstance = echarts.init(chartDom);
@@ -135,7 +100,7 @@
                     },
                     calendar: [{
                         orient: 'vertical',
-                        range: `2024-${idx}`,
+                        range: `${input_year}-${idx}`,
                         dayLabel: {
                             firstDay: 1,
                             nameMap: 'cn'
@@ -242,7 +207,8 @@
                 try {
                     const res = await fetch(`industry_top_${date}.json`);
                     const rawData = await res.json();
-                    getCalendarData('2024', rawData);
+                    input_year = date.slice(0,4)
+                    getCalendarData(input_year, rawData);
                     for (let index = 1; index <= 12; index++) {
                         initChart(index);                        
                     }
