@@ -50,6 +50,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
+        rm disk/test.json
+        rm disk/test.html
         git add disk/*  
         git add viz/*
         git commit -m "Add daily output to disk" 
