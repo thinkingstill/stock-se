@@ -54,5 +54,6 @@ jobs:
         rm viz/test.html
         git add disk/*  
         git add viz/*
+        git add -u
         git commit -m "Add daily output to disk" 
         git push        
