@@ -117,6 +117,9 @@ if __name__ == "__main__":
         print(f'今天({TODAY_STR})非交易日!')
         sys.exit(0)
     if opt == "daily":
+        if os.path.exists(f'disk/stock_daily_{LATEST_EXCHAGE_DATE}.json'):
+            print(f'今天({TODAY_STR})已经运行!')
+            sys.exit(0)
         ## 行业信息
         industry_mapping = json.load(open('disk/industry_mapping.json'))
         # 获取今日行情数据
