@@ -38,7 +38,8 @@
             flex-direction: column;
             /* 保持竖向排列 */
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
+            text-align: left;
             overflow-x: hidden;
             /* 隐藏横向滚动条 */
             overflow-y: auto;
@@ -60,19 +61,23 @@
         .legend-item {
             padding: 8px 12px;
             margin: 5px 0;
-            /* 垂直间距 */
             border-radius: 20px;
             border: 1px solid #eee;
             min-width: 120px;
-            /* 保持一致宽度 */
             height: 40px;
-            display: inline-flex;
+            display: flex;
+            /* 使用 flex 布局 */
             align-items: center;
-            justify-content: center;
+            /* 垂直居中 */
+            justify-content: flex-start;
+            /* 水平左对齐 */
+            gap: 8px;
+            /* 增加方块与文字间距 */
+            text-align: left;
+            /* 确保文字左对齐 */
             font-size: 14px;
             flex: 0 0 auto;
             background: #f9f9f9;
-            /* 图例背景色 */
             cursor: pointer;
             transition: background 0.3s;
         }
@@ -82,9 +87,17 @@
             /* 鼠标悬停效果 */
         }
 
+        .legend-item span {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
         .legend-item.active {
-            background: #ddd;
-            border-color: #bbb;
+            background: #e0e0e0;
+            border-color: #999;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
         .color-box {
@@ -167,7 +180,7 @@
     <div id="app">
         <div class="legend-container">
             <div v-for="(color, industry) in legendData" :key="industry" class="legend-item"
-                :class="{ active: selectedLegends.includes(industry) }" @click="handleLegendClick(industry)">
+                :class="{ active: selectedLegend === industry }" @click="handleLegendClick(industry)">
                 <div class="color-box" :style="{ backgroundColor: color }"></div>
                 <span>{{ industry }}</span>
             </div>
@@ -191,11 +204,11 @@
             setup() {
                 const charts = reactive({});
                 const data = ref([]);
-                const selectedLegends = reactive([]);
+                const selectedLegend = ref(null);
                 const industryMap = ref({});
                 const industryMapRevert = ref({});
                 const selectedIndustry = ref(null);
-                const fixedColorList = ["#F0F0F0", "#FF5733", "#33FF57", "#5733FF", "#FF33E7", "#33E7FF", "#E7FF33", "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF", "#FF8C00", "#8C00FF", "#00FF8C", "#FF008C", "#8CFF00", "#008CFF", "#FF4500", "#4500FF", "#00FF45", "#FF0045", "#45FF00", "#0045FF", "#FF1493", "#1493FF", "#93FF14", "#FF1400", "#1400FF", "#00FF14", "#FF9933", "#9933FF", "#33FF99", "#FF6347", "#6347FF", "#47FF63", "#FFD700", "#D700FF", "#00FFD7", "#FFC0CB", "#C0CBFF", "#CBFFC0", "#FFB6C1", "#B6C1FF", "#C1FFB6", "#FFA07A", "#A07AFF", "#7AFFA0", "#228B22", "#8B2222", "#22228B", "#800080", "#008080", "#808000", "#DA70D6", "#70D6DA", "#D6DA70", "#3CB371", "#B3713C", "#713C B3", "#6A5ACD", "#5ACD6A", "#CD6A5A", "#9370DB", "#70DB93", "#DB9370", "#00CED1", "#CED100", "#D100CE", "#48D1CC", "#D1CC48", "#CC48D1", "#9ACD32", "#ACD39A", "#D39A AC", "#F08080", "#8080F0", "#80F080", "#7FFFD4", "#FFD47F", "#D47FFF", "#66CDAA", "#CDAA66", "#AA66CD", "#40E0D0", "#E0D040", "#D040E0", "#ADD8E6", "#D8E6AD", "#E6AD D8", "#F0E68C", "#E68C F0", "#8C F0E6", "#E0FFFF", "#FFFFE0", "#FFE0FF"];
+                const fixedColorList = ["#F0F0F0", "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF", "#FF4500", "#32CD32", "#1E90FF", "#FFD700", "#FF1493", "#40E0D0", "#8B0000", "#228B22", "#00008B", "#9ACD32", "#8A2BE2", "#FF6347", "#7FFF00", "#4169E1", "#FFA500", "#FF69B4", "#4682B4", "#2E8B57", "#B22222", "#4B0082", "#5F9EA0", "#9932CC", "#FF8C00", "#00FA9A", "#87CEEB", "#6B8E23", "#20B2AA", "#D2691E", "#C71585", "#191970", "#7CFC00", "#DC143C", "#4682B4", "#B0C4DE", "#DA70D6", "#9ACD32", "#FFFAFA", "#FFDEAD", "#BC8F8F", "#556B2F", "#8B4513", "#800000", "#006400", "#2F4F4F", "#808000", "#483D8B", "#8A2BE2", "#00BFFF", "#D8BFD8", "#DC143C", "#FFD700", "#78EE", "#32CD32"];
                 let selected = false;
                 let input_year = '2024';
 
@@ -210,12 +223,14 @@
                 });
 
                 const handleLegendClick = (industry) => {
-                    const index = selectedLegends.indexOf(industry);
-                    if (index > -1) {
-                        selectedLegends.splice(index, 1);
+                    if (selectedLegend.value === industry) {
+                        // 如果当前已选中，取消选中
+                        selectedLegend.value = null;
                     } else {
-                        selectedLegends.push(industry);
+                        // 否则设置为选中当前图例
+                        selectedLegend.value = industry;
                     }
+
                     const industryIndex = industryMap.value[industry];
                     selectedIndustry.value = industry;
                     heatmapClick(industryIndex);
@@ -359,7 +374,7 @@
                     charts,
                     selectedIndustry,
                     legendData,
-                    selectedLegends,
+                    selectedLegend,
                     handleLegendClick
                 };
             }
