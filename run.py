@@ -181,8 +181,9 @@ def get_industry_detail(start_date, end_date):
         except Exception as e:
             continue
         totla_stock_range.append(tmp_df)
-    totla_stock__df = pd.concat(totla_stock_range)
-    merged_df = pd.merge(totla_stock__df, stock_basic_info, on='股票代码', how='left')
+    totla_stock_df = pd.concat(totla_stock_range)
+    merged_df = pd.merge(totla_stock_df, stock_basic_info, on='股票代码', how='left')
+    return merged_df
 
 def get_daily_detail(stat_date):
     # 获取今日行情数据
@@ -197,13 +198,13 @@ if __name__ == "__main__":
     
     # 执行命令
     opt = sys.argv[1]
-
-    # 判断当前日是否是交易日
     LATEST_EXCHAGE_DATE = get_exchange_date()
-    if TODAY_STR != LATEST_EXCHAGE_DATE:
-        print(f'今天({TODAY_STR})非交易日!')
-        sys.exit(0)
     if opt == "daily":
+        # 判断当前日是否是交易日
+        if TODAY_STR != LATEST_EXCHAGE_DATE:
+            print(f'今天({TODAY_STR})非交易日!')
+            sys.exit(0)
+
         if os.path.exists(f'disk/stock_daily_{LATEST_EXCHAGE_DATE}.json'):
             print(f'今天({TODAY_STR})已经运行!')
             sys.exit(0)
@@ -237,13 +238,15 @@ if __name__ == "__main__":
             f.write(LATEST_EXCHAGE_DATE)
 
     if opt == "year":
-        cur_year = LATEST_EXCHAGE_DATE[0:4]
+        cur_year = sys.argv[2] or LATEST_EXCHAGE_DATE[0:4]
         next_year = str(int(cur_year) + 1)
         start_date = f"{cur_year}0101"
         end_date = f"{next_year}0101"
+        print(f'开始日期{start_date}, 结束日期{end_date}')
         # 获取当日最高涨幅行业
         year_df = get_industry_detail(start_date, end_date)
+        print(f'数据size是{year_df.shape}')
         top_result = get_top_df(year_df, LATEST_EXCHAGE_DATE)
-        top_result.to_json(f'./industry_top_{stat_date}.json',orient='records', force_ascii=False)
+        top_result.to_json(f'./industry_top_{cur_year}.json',orient='records', force_ascii=False)
         buttom_result = get_buttom_df(year_df, LATEST_EXCHAGE_DATE)
-        buttom_result.to_json(f'./industry_top_{stat_date}s.json',orient='records', force_ascii=False)
+        buttom_result.to_json(f'./industry_top_{cur_year}s.json',orient='records', force_ascii=False)
