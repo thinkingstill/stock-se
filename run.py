@@ -205,9 +205,9 @@ if __name__ == "__main__":
             print(f'今天({TODAY_STR})非交易日!')
             sys.exit(0)
 
-        if os.path.exists(f'disk/stock_daily_{LATEST_EXCHAGE_DATE}.json'):
-            print(f'今天({TODAY_STR})已经运行!')
-            sys.exit(0)
+        # if os.path.exists(f'disk/stock_daily_{LATEST_EXCHAGE_DATE}.json'):
+        #     print(f'今天({TODAY_STR})已经运行!')
+        #     sys.exit(0)
         # 当天股票明细
         ## 行业信息
         industry_mapping = json.load(open('disk/industry_mapping.json'))
@@ -222,13 +222,13 @@ if __name__ == "__main__":
         range_df = get_industry_detail(next_day_str, LATEST_EXCHAGE_DATE)
 
         ## top
-        cur_top_df = get_top_df(year_df, LATEST_EXCHAGE_DATE)
+        cur_top_df = get_top_df(range_df, LATEST_EXCHAGE_DATE)
         last_top_df = pd.read_json(f'./industry_top_{last_day}.json')
         cur_top_cum_df = pd.concat([cur_top_df, last_top_df])
         cur_top_cum_df.to_json(f'./industry_top_{LATEST_EXCHAGE_DATE}.json',orient='records', force_ascii=False)
 
         #buttom
-        cur_buttom_df = get_buttom_df(year_df, LATEST_EXCHAGE_DATE)
+        cur_buttom_df = get_buttom_df(range_df, LATEST_EXCHAGE_DATE)
         last_buttom_df = pd.read_json(f'./industry_top_{last_day}s.json')
         cur_buttom_cum_df = pd.concat([cur_buttom_df, last_buttom_df])
         cur_buttom_cum_df.to_json(f'./industry_top_{LATEST_EXCHAGE_DATE}s.json',orient='records', force_ascii=False)
