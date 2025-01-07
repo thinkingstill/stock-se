@@ -223,13 +223,13 @@ if __name__ == "__main__":
 
         ## top
         cur_top_df = get_top_df(range_df, LATEST_EXCHAGE_DATE)
-        last_top_df = pd.read_json(f'./industry_top_{last_day}.json')
+        last_top_df = pd.read_json(f'disk/industry_top_{last_day}.json')
         cur_top_cum_df = pd.concat([cur_top_df, last_top_df])
         cur_top_cum_df.to_json(f'./industry_top_{LATEST_EXCHAGE_DATE}.json',orient='records', force_ascii=False)
 
         #buttom
         cur_buttom_df = get_buttom_df(range_df, LATEST_EXCHAGE_DATE)
-        last_buttom_df = pd.read_json(f'./industry_top_{last_day}s.json')
+        last_buttom_df = pd.read_json(f'disk/industry_top_{last_day}s.json')
         cur_buttom_cum_df = pd.concat([cur_buttom_df, last_buttom_df])
         cur_buttom_cum_df.to_json(f'./industry_top_{LATEST_EXCHAGE_DATE}s.json',orient='records', force_ascii=False)
 
