@@ -5,7 +5,6 @@
 # aktools API
 ## termux安装
 
-    <code>
       # 1. 安装 proot 环境
       pkg install proot-distro
       
@@ -25,4 +24,4 @@
       # 6. 验证安装
       python -m  aktools --version
       python -m  aktools
-    </code>
+
