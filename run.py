@@ -227,12 +227,20 @@ if __name__ == "__main__":
         cur_top_cum_df = pd.concat([cur_top_df, last_top_df])
         cur_top_cum_df.to_json(f'./industry_top_{LATEST_EXCHAGE_DATE}.json',orient='records', force_ascii=False)
 
-        #buttom
+        ## buttom
         cur_buttom_df = get_buttom_df(range_df, LATEST_EXCHAGE_DATE)
         last_buttom_df = pd.read_json(f'disk/industry_top_{last_day}s.json')
         cur_buttom_cum_df = pd.concat([cur_buttom_df, last_buttom_df])
         cur_buttom_cum_df.to_json(f'./industry_top_{LATEST_EXCHAGE_DATE}s.json',orient='records', force_ascii=False)
 
+        # SZZS daily
+        year_begin = f'{LATEST_EXCHAGE_DATE[0:4]}0101'
+        szzs_df = ak.index_zh_a_hist(symbol="000001",  period="daily", start_date=year_begin, end_date=LATEST_EXCHAGE_DATE)
+        szzs_data = {}
+        for idx,row in szzs_df.iterrows():
+            szzs_data[row["日期"]] = row.to_dict()
+        json.dump(szzs_data, open(f'disk//szzs_{LATEST_EXCHAGE_DATE[0:4]}.json', 'w'), ensure_ascii=False)
+        
         # 保存当前日期
         with open('disk/latest_exchange_day.txt', 'w', encoding='utf-8') as f:
             f.write(LATEST_EXCHAGE_DATE)
