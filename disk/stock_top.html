@@ -211,6 +211,7 @@
                 const fixedColorList = ["#F0F0F0", "#FF0000", "#00FF00", "#0000FF", "#FFFF00", "#FF00FF", "#00FFFF", "#FF4500", "#32CD32", "#1E90FF", "#FFD700", "#FF1493", "#40E0D0", "#8B0000", "#228B22", "#00008B", "#9ACD32", "#8A2BE2", "#FF6347", "#7FFF00", "#4169E1", "#FFA500", "#FF69B4", "#4682B4", "#2E8B57", "#B22222", "#4B0082", "#5F9EA0", "#9932CC", "#FF8C00", "#00FA9A", "#87CEEB", "#6B8E23", "#20B2AA", "#D2691E", "#C71585", "#191970", "#7CFC00", "#DC143C", "#4682B4", "#B0C4DE", "#DA70D6", "#9ACD32", "#FFFAFA", "#FFDEAD", "#BC8F8F", "#556B2F", "#8B4513", "#800000", "#006400", "#2F4F4F", "#808000", "#483D8B", "#8A2BE2", "#00BFFF", "#D8BFD8", "#DC143C", "#FFD700", "#78EE", "#32CD32"];
                 let selected = false;
                 let input_year = '2024';
+                let szzs_data = null;
 
                 const legendData = computed(() => {
                     const result = {};
@@ -277,6 +278,18 @@
                                 color: function (params) {
                                     return fixedColorList[params.data[1]]
                                 }
+                            },
+                            label: {
+                                show: true, // 显示文字
+                                formatter: function (params) {
+                                    var dateStr = params.data[0];
+                                    var changeRate = szzs_data[dateStr]?.['涨跌幅'] || 0;
+                                    return Object.keys(szzs_data).includes(dateStr)? `${changeRate}%` : ''; // 显示涨跌幅
+                                },
+                                color: '#000', // 文字颜色
+                                fontSize: 10,  // 文字大小
+                                fontWeight: 'bold', // 字体加粗
+                                position: 'inside', // 文字显示在格子内部
                             }
                         }]
                     };
@@ -362,6 +375,7 @@
                         const res = await fetch(`industry_top_${date}.json`);
                         const rawData = await res.json();
                         input_year = date.slice(0, 4);
+                        szzs_data = await (await fetch(`szzs_${input_year}.json`)).json()
                         getCalendarData(input_year, rawData);
                         for (let index = 1; index <= 12; index++) {
                             initChart(index);
