@@ -1,6 +1,7 @@
 # stock-se 页面
 - `stock_daily`每日股票3D可视化
 - `stock_top` 每日股票日历图
+- `stock_eval` 股票收益估算，需要本地部署aktools API
 
 # aktools API
 ## termux安装
