@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Return Calendar</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.3.4/axios.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 10px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .header {
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 24px;
+            margin: 0;
+        }
+        .input-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 15px;
+            gap: 8px;
+        }
+        input, button, select {
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            border: none;
+            font-weight: bold;
+            width: auto;
+            min-width: 100px;
+            touch-action: manipulation;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button.secondary {
+            background-color: #607d8b;
+        }
+        button.secondary:hover {
+            background-color: #546e7a;
+        }
+        #calendar {
+            height: 500px;
+            width: 100%;
+        }
+        .loading {
+            text-align: center;
+            padding: 30px;
+            font-size: 18px;
+            color: #666;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .loading::after {
+            content: '';
+            width: 30px;
+            height: 30px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .tooltip-item {
+            display: block;
+            margin: 6px 0;
+            font-size: 14px;
+        }
+        .summary {
+            margin-top: 15px;
+            padding: 15px 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 16px;
+        }
+        .summary-item {
+            display: block;
+            margin: 8px 0;
+            font-weight: bold;
+        }
+        .positive {
+            color: #c00000;
+        }
+        .negative {
+            color: #008000;
+        }
+        .settings {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        .settings-toggle {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .settings-content {
+            display: none;
+        }
+        .date-nav {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 15px;
+            gap: 10px;
+        }
+        .current-date {
+            font-size: 20px;
+            font-weight: bold;
+            text-align: center;
+            width: 100%;
+        }
+        .nav-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        /* 触摸设备优化 */
+        .touch-device button:active {
+            opacity: 0.7;
+            transform: scale(0.98);
+        }
+        
+        /* 移动端优化 */
+        @media (max-width: 767px) {
+            .settings-content .input-group {
+                flex-direction: column;
+            }
+            
+            .tooltip-item {
+                font-size: 12px;
+            }
+            
+            /* 优化加载状态显示 */
+            .loading small {
+                font-size: 14px;
+                max-width: 90%;
+                margin: 0 auto;
+            }
+            
+            /* 优化表单元素在触摸设备上的交互 */
+            input, select, button {
+                font-size: 16px; /* 防止iOS自动缩放 */
+                min-height: 44px; /* 确保触摸目标足够大 */
+            }
+            
+            /* 确保按钮在小屏幕上有足够的间距 */
+            .nav-buttons button {
+                margin-bottom: 5px;
+                min-width: 80px;
+            }
+        }
+        
+        /* 响应式设计 */
+        @media (min-width: 768px) {
+            body {
+                padding: 20px;
+            }
+            .container {
+                padding: 20px;
+            }
+            .header h1 {
+                font-size: 28px;
+            }
+            .input-group {
+                flex-wrap: nowrap;
+            }
+            input, select {
+                width: auto;
+            }
+            #calendar {
+                height: 700px;
+            }
+            .summary-item {
+                display: inline-block;
+                margin: 0 20px;
+            }
+            .date-nav {
+                flex-direction: row;
+                justify-content: space-between;
+            }
+            .current-date {
+                text-align: left;
+                width: auto;
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>股票收益日历图</h1>
+        </div>
+        
+        <div class="settings">
+            <div class="settings-toggle">
+                <button id="toggleSettings" class="secondary">显示/隐藏 API 设置</button>
+            </div>
+            <div class="settings-content" id="settingsContent">
+                <h3>API设置</h3>
+                <div class="input-group">
+                    <input type="text" id="apiBaseUrl" placeholder="API基础URL" value="http://127.0.0.1:8080">
+                    <input type="text" id="apiEndpoint" placeholder="API端点" value="/api/public/stock_zh_a_hist">
+                    <button id="saveSettings" class="secondary">保存设置</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="input-group">
+            <input type="text" id="stockCode" placeholder="输入股票代码 (例如: 000001)" value="000001">
+            <select id="adjustType">
+                <option value="qfq">前复权</option>
+                <option value="hfq">后复权</option>
+                <option value="">不复权</option>
+            </select>
+            <button id="fetchData">获取数据</button>
+        </div>
+        
+        <div class="date-nav" id="dateNav" style="display: none;">
+            <div class="current-date" id="currentMonthDisplay"></div>
+            <div class="nav-buttons">
+                <button id="prevMonth" class="secondary">&lt; 上月</button>
+                <button id="nextMonth" class="secondary">下月 &gt;</button>
+                <button id="currentMonth" class="secondary">当前月</button>
+            </div>
+        </div>
+        
+        <div id="summary" class="summary" style="display: none;">
+            <div class="summary-item">股票: <span id="stockName"></span></div>
+            <div class="summary-item">累计收益: <span id="totalReturn"></span></div>
+            <div class="summary-item">年化收益率: <span id="annualizedReturn"></span></div>
+        </div>
+        <div id="loading" class="loading" style="display: none;"></div>
+        <div id="calendar" style="display: none;"></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 设置相关元素
+            const toggleSettingsBtn = document.getElementById('toggleSettings');
+            const settingsContent = document.getElementById('settingsContent');
+            const saveSettingsBtn = document.getElementById('saveSettings');
+            const apiBaseUrlInput = document.getElementById('apiBaseUrl');
+            const apiEndpointInput = document.getElementById('apiEndpoint');
+            
+            // 股票数据相关元素
+            const stockCodeInput = document.getElementById('stockCode');
+            const adjustTypeSelect = document.getElementById('adjustType');
+            const fetchButton = document.getElementById('fetchData');
+            const calendarDiv = document.getElementById('calendar');
+            const loadingDiv = document.getElementById('loading');
+            const summaryDiv = document.getElementById('summary');
+            const stockNameSpan = document.getElementById('stockName');
+            const totalReturnSpan = document.getElementById('totalReturn');
+            const annualizedReturnSpan = document.getElementById('annualizedReturn');
+            
+            // 日期导航相关元素
+            const dateNavDiv = document.getElementById('dateNav');
+            const currentMonthDisplay = document.getElementById('currentMonthDisplay');
+            const prevMonthBtn = document.getElementById('prevMonth');
+            const nextMonthBtn = document.getElementById('nextMonth');
+            const currentMonthBtn = document.getElementById('currentMonth');
+            
+            // 图表和数据
+            let myChart = null; // 延迟初始化图表
+            let stockData = [];
+            let currentDisplayMonth = new Date().getMonth();
+            let currentDisplayYear = new Date().getFullYear();
+            
+            // 从cookie加载API设置
+            loadSettingsFromCookies();
+            
+            // 事件监听器
+            toggleSettingsBtn.addEventListener('click', toggleSettings);
+            saveSettingsBtn.addEventListener('click', saveSettings);
+            fetchButton.addEventListener('click', fetchStockData);
+            prevMonthBtn.addEventListener('click', () => navigateMonth(-1));
+            nextMonthBtn.addEventListener('click', () => navigateMonth(1));
+            currentMonthBtn.addEventListener('click', goToCurrentMonth);
+            
+            // 响应窗口大小变化
+            window.addEventListener('resize', function() {
+                if (myChart) {
+                    // 使用防抖函数避免频繁调用resize
+                    if (window.resizeTimer) {
+                        clearTimeout(window.resizeTimer);
+                    }
+                    window.resizeTimer = setTimeout(() => {
+                        myChart.resize();
+                        // 重新设置图表选项以适应新的屏幕尺寸
+                        updateCalendarDisplay();
+                    }, 100);
+                }
+            });
+            
+            // 添加触摸事件支持
+            document.addEventListener('touchstart', function(e) {
+                // 防止触摸事件引起的缩放问题
+                if(e.touches.length > 1) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+            
+            // 优化移动端点击体验
+            const allButtons = document.querySelectorAll('button');
+            allButtons.forEach(button => {
+                button.addEventListener('touchstart', function() {
+                    this.style.opacity = '0.7';
+                });
+                button.addEventListener('touchend', function() {
+                    this.style.opacity = '1';
+                    setTimeout(() => {
+                        this.blur();
+                    }, 300);
+                });
+            });
+            
+            // 检测设备类型并设置适当的交互模式
+            const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+            if (isTouchDevice) {
+                document.body.classList.add('touch-device');
+            }
+            
+            // 添加MutationObserver监听DOM变化
+            const observer = new MutationObserver(function(mutations) {
+                // 限制只在必要时调用resize
+                if (myChart && calendarDiv.style.display !== 'none') {
+                    // 使用防抖函数避免频繁调用resize
+                    if (window.resizeTimer) {
+                        clearTimeout(window.resizeTimer);
+                    }
+                    window.resizeTimer = setTimeout(() => {
+                        myChart.resize();
+                    }, 100);
+                }
+            });
+            
+            // 只观察关键元素的变化，而不是整个body
+            observer.observe(calendarDiv, { attributes: true });
+            
+            // 切换API设置显示/隐藏
+            function toggleSettings() {
+                if (settingsContent.style.display === 'none' || !settingsContent.style.display) {
+                    settingsContent.style.display = 'block';
+                } else {
+                    settingsContent.style.display = 'none';
+                }
+            }
+            
+            // 保存API设置到cookie
+            function saveSettings() {
+                const apiBaseUrl = apiBaseUrlInput.value.trim();
+                const apiEndpoint = apiEndpointInput.value.trim();
+                
+                setCookie('apiBaseUrl', apiBaseUrl, 365);
+                setCookie('apiEndpoint', apiEndpoint, 365);
+                
+                alert('API设置已保存');
+                settingsContent.style.display = 'none';
+            }
+            
+            // 从cookie加载设置
+            function loadSettingsFromCookies() {
+                const savedApiBaseUrl = getCookie('apiBaseUrl');
+                const savedApiEndpoint = getCookie('apiEndpoint');
+                const savedStockCode = getCookie('stockCode');
+                const savedAdjustType = getCookie('adjustType');
+                
+                if (savedApiBaseUrl) {
+                    apiBaseUrlInput.value = savedApiBaseUrl;
+                }
+                
+                if (savedApiEndpoint) {
+                    apiEndpointInput.value = savedApiEndpoint;
+                }
+                
+                if (savedStockCode) {
+                    stockCodeInput.value = savedStockCode;
+                }
+                
+                if (savedAdjustType) {
+                    adjustTypeSelect.value = savedAdjustType;
+                }
+            }
+            
+            // Cookie操作函数
+            function setCookie(name, value, days) {
+                let expires = '';
+                if (days) {
+                    const date = new Date();
+                    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                    expires = '; expires=' + date.toUTCString();
+                }
+                document.cookie = name + '=' + (value || '') + expires + '; path=/';
+            }
+            
+            function getCookie(name) {
+                const nameEQ = name + '=';
+                const ca = document.cookie.split(';');
+                for (let i = 0; i < ca.length; i++) {
+                    let c = ca[i];
+                    while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+                    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+                }
+                return null;
+            }
+            
+            // 月份导航函数
+            function navigateMonth(direction) {
+                currentDisplayMonth += direction;
+                
+                if (currentDisplayMonth > 11) {
+                    currentDisplayMonth = 0;
+                    currentDisplayYear++;
+                } else if (currentDisplayMonth < 0) {
+                    currentDisplayMonth = 11;
+                    currentDisplayYear--;
+                }
+                
+                updateCalendarDisplay();
+            }
+            
+            function goToCurrentMonth() {
+                const now = new Date();
+                currentDisplayMonth = now.getMonth();
+                currentDisplayYear = now.getFullYear();
+                updateCalendarDisplay();
+            }
+            
+            function updateMonthDisplay() {
+                const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
+                currentMonthDisplay.textContent = `${currentDisplayYear}年 ${monthNames[currentDisplayMonth]}`;
+            }
+            
+            function updateCalendarDisplay() {
+                if (stockData.length === 0) return;
+                
+                updateMonthDisplay();
+                
+                // 使用缓存优化数据过滤
+                const cacheKey = `${currentDisplayYear}-${currentDisplayMonth}`;
+                let filteredData;
+                
+                if (window.dataCache && window.dataCache[cacheKey]) {
+                    filteredData = window.dataCache[cacheKey];
+                } else {
+                    // 过滤当前月份的数据
+                    filteredData = stockData.filter(item => {
+                        const itemDate = new Date(item.date);
+                        return itemDate.getMonth() === currentDisplayMonth && 
+                               itemDate.getFullYear() === currentDisplayYear;
+                    });
+                    
+                    // 缓存结果
+                    if (!window.dataCache) window.dataCache = {};
+                    window.dataCache[cacheKey] = filteredData;
+                }
+                
+                // 准备日历图数据
+                const calendarData = filteredData.map(item => [
+                    item.date,
+                    item.changePercent,
+                    item.accumulatedValue
+                ]);
+                
+                // 格式化当前显示的年月为YYYY-MM格式
+                const rangeStart = `${currentDisplayYear}-${String(currentDisplayMonth + 1).padStart(2, '0')}`;
+                
+                // 检测是否为移动设备
+                const isMobile = window.innerWidth < 768;
+                
+                const option = {
+                    tooltip: {
+                        formatter: function(params) {
+                            return `<div>
+                                <div class="tooltip-item">日期: ${params.value[0]}</div>
+                                <div class="tooltip-item">涨跌幅: ${params.value[1]}%</div>
+                                <div class="tooltip-item">累计收益: ${params.value[2]}元</div>
+                            </div>`;
+                        },
+                        confine: true // 确保提示框在图表区域内
+                    },
+                    visualMap: {
+                        min: -5,
+                        max: 5,
+                        calculable: true,
+                        orient: 'horizontal',
+                        left: 'center',
+                        top: 'top',
+                        inRange: {
+                            color: ['#008000', '#ffffff', '#c00000']
+                        },
+                        text: ['涨', '跌'],
+                        dimension: 1,
+                        itemWidth: isMobile ? 15 : 20,
+                        itemHeight: isMobile ? 100 : 140,
+                        textStyle: {
+                            fontSize: isMobile ? 12 : 14
+                        }
+                    },
+                    calendar: {
+                        top: isMobile ? 80 : 100,
+                        left: isMobile ? 30 : 50,
+                        right: isMobile ? 30 : 50,
+                        bottom: isMobile ? 30 : 50,
+                        orient: 'vertical',  // 设置为垂直方向显示
+                        cellSize: ['auto', 'auto'],  // 自动调整单元格大小
+                        range: rangeStart,
+                        itemStyle: {
+                            borderWidth: 1
+                        },
+                        yearLabel: { show: true, fontSize: isMobile ? 14 : 16 },
+                        dayLabel: { 
+                            fontSize: isMobile ? 12 : 14,
+                            firstDay: 1,  // 设置周一为一周的第一天
+                            nameMap: 'cn'  // 使用中文显示
+                        },
+                        monthLabel: { fontSize: isMobile ? 14 : 16, nameMap: 'cn', show: true }
+                    },
+                    series: {
+                        type: 'heatmap',
+                        coordinateSystem: 'calendar',
+                        data: calendarData,
+                        label: {
+                            show: true,
+                            fontSize: isMobile ? 12 : 14,
+                            formatter: function(params) {
+                                const changePercent = parseFloat(params.value[1]);
+                                // 在移动设备上简化显示
+                                if (isMobile) {
+                                    return `${changePercent > 0 ? '+' : ''}${parseFloat(changePercent).toFixed(1)}`;
+                                }
+                                return `${changePercent > 0 ? '+' : ''}${changePercent}%`;
+                            }
+                        }
+                    }
+                };
+                
+                // 确保图表容器已经显示并且有尺寸
+                if (!myChart) {
+                    // 如果图表实例不存在，初始化它
+                    myChart = echarts.init(document.getElementById('calendar'));
+                }
+                
+                // 设置选项并强制重绘
+                myChart.setOption(option, true);
+                
+                // 强制重新计算尺寸
+                setTimeout(() => {
+                    if (myChart) {
+                        myChart.resize();
+                    }
+                }, 50);
+            }
+            
+            // 获取股票名称信息
+            function fetchStockName(stockCode) {
+                const apiBaseUrl = apiBaseUrlInput.value.trim();
+                const nameApiUrl = `${apiBaseUrl}/api/public/stock_info_a_code_name`;
+                
+                return axios.get(nameApiUrl)
+                    .then(response => {
+                        if (response.data && Array.isArray(response.data)) {
+                            // 查找匹配的股票代码
+                            const stockInfo = response.data.find(item => 
+                                item['code'] === stockCode || 
+                                item['code'] === stockCode.padStart(6, '0'));
+                            
+                            if (stockInfo) {
+                                return stockInfo['name'] || '未知';
+                            }
+                        }
+                        return '未知';
+                    })
+                    .catch(error => {
+                        console.error('获取股票名称失败:', error);
+                        return '未知';
+                    });
+            }
+            
+            function fetchStockData() {
+                const apiBaseUrl = apiBaseUrlInput.value.trim();
+                const apiEndpoint = apiEndpointInput.value.trim();
+                const stockCode = stockCodeInput.value.trim();
+                const adjustType = adjustTypeSelect.value;
+                
+                // 保存当前输入到cookie
+                setCookie('stockCode', stockCode, 365);
+                setCookie('adjustType', adjustType, 365);
+                
+                if (!stockCode) {
+                    alert('请输入有效的股票代码');
+                    return;
+                }
+                
+                if (!apiBaseUrl) {
+                    alert('请输入有效的API基础URL');
+                    return;
+                }
+                
+                // 显示加载状态
+                calendarDiv.style.display = 'none';
+                dateNavDiv.style.display = 'none';
+                loadingDiv.style.display = 'block';
+                loadingDiv.innerHTML = '正在加载数据...<br><small>请稍候，正在从服务器获取股票数据</small>';
+                summaryDiv.style.display = 'none';
+                
+                // 获取当前年份的1月1日到当前日期
+                const currentDate = new Date();
+                const startDate = new Date(currentDate.getFullYear(), 0, 1);
+                
+                const formattedStartDate = formatDate(startDate);
+                const formattedEndDate = formatDate(currentDate);
+                
+                // 构建API URL
+                let apiUrl = `${apiBaseUrl}${apiEndpoint}?symbol=${stockCode}&period=daily&start_date=${formattedStartDate}&end_date=${formattedEndDate}`;
+                
+                if (adjustType) {
+                    apiUrl += `&adjust=${adjustType}`;
+                }
+                
+                // 先获取股票名称，然后再获取股票数据
+                fetchStockName(stockCode)
+                    .then(stockName => {
+                        // 获取到股票名称后，继续获取股票数据
+                        return axios.get(apiUrl)
+                            .then(response => {
+                                console.log("API Response:", response);
+                                console.log("Stock Name:", stockName);
+                                
+                                // 检查响应结构并根据实际结构处理数据
+                                let dataToProcess = [];
+                                
+                                if (response.data && Array.isArray(response.data)) {
+                                    dataToProcess = response.data;
+                                } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+                                    dataToProcess = response.data.data;
+                                } else if (response.data && typeof response.data === 'object') {
+                                    console.log("Unexpected data structure:", response.data);
+                                    loadingDiv.innerHTML = '<span style="color:#e74c3c">API返回的数据结构与预期不符</span><br><small>请检查控制台获取详细信息</small>';
+                                    return;
+                                }
+                                
+                                if (dataToProcess.length > 0) {
+                                    stockData = processStockData(dataToProcess);
+                                    
+                                    // 更新为当前月
+                                    goToCurrentMonth();
+                                    
+                                    // 使用从API获取的股票名称
+                                    // 如果API没有返回名称，尝试从数据中获取
+                                    if (stockName === '未知') {
+                                        if (dataToProcess[0] && dataToProcess[0].name) {
+                                            stockName = dataToProcess[0].name;
+                                        } else if (dataToProcess[0] && dataToProcess[0]['股票名称']) {
+                                            stockName = dataToProcess[0]['股票名称'];
+                                        }
+                                    }
+                                    
+                                    // 更新摘要信息
+                                    updateSummary(stockData, stockName);
+                                    
+                                    // 显示图表和摘要
+                                    calendarDiv.style.display = 'block';
+                                    dateNavDiv.style.display = 'flex';
+                                    loadingDiv.style.display = 'none';
+                                    summaryDiv.style.display = 'block';
+                            
+                                    // 添加短暂延迟，确保DOM元素完全渲染后再初始化图表
+                                    setTimeout(() => {
+                                        // 强制重新初始化图表
+                                        if (myChart) {
+                                            myChart.dispose();
+                                        }
+                                        myChart = echarts.init(document.getElementById('calendar'));
+                                        updateCalendarDisplay();
+                                    }, 100)
+                                } else {
+                                    loadingDiv.innerHTML = '<span style="color:#e74c3c">获取数据失败</span><br><small>API返回的数据为空</small>';
+                                };
+                            }).catch(error => {
+                                    console.error('Error fetching data:', error);
+                                    loadingDiv.innerHTML = '<span style="color:#e74c3c">获取数据失败</span><br><small>' + (error.message || '未知错误') + '</small><br><small>请检查网络连接或API设置</small>';
+                                });
+                    })
+                    .catch(error => {
+                        console.error('Error fetching stock name:', error);
+                        // 如果获取股票名称失败，继续获取股票数据
+                        axios.get(apiUrl)
+                            .then(response => {
+                                // 处理股票数据的逻辑...
+                                let dataToProcess = [];
+                                
+                                if (response.data && Array.isArray(response.data)) {
+                                    dataToProcess = response.data;
+                                } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+                                    dataToProcess = response.data.data;
+                                } else {
+                                    loadingDiv.innerHTML = '<span style="color:#e74c3c">API返回的数据结构与预期不符</span><br><small>请检查控制台获取详细信息</small>';
+                                    return;
+                                }
+                                
+                                if (dataToProcess.length > 0) {
+                                    stockData = processStockData(dataToProcess);
+                                    goToCurrentMonth();
+                                    
+                                    // 尝试从数据中获取股票名称
+                                    let stockName = "未知";
+                                    if (dataToProcess[0] && dataToProcess[0].name) {
+                                        stockName = dataToProcess[0].name;
+                                    } else if (dataToProcess[0] && dataToProcess[0]['股票名称']) {
+                                        stockName = dataToProcess[0]['股票名称'];
+                                    }
+                                    
+                                    updateSummary(stockData, stockName);
+                                    
+                                    calendarDiv.style.display = 'block';
+                                    dateNavDiv.style.display = 'flex';
+                                    loadingDiv.style.display = 'none';
+                                    summaryDiv.style.display = 'block';
+                                    
+                                    setTimeout(() => {
+                                        if (myChart) {
+                                            myChart.dispose();
+                                        }
+                                        myChart = echarts.init(document.getElementById('calendar'));
+                                        updateCalendarDisplay();
+                                    }, 100);
+                                } else {
+                                    loadingDiv.innerHTML = '<span style="color:#e74c3c">未找到数据</span><br><small>请检查股票代码是否正确或尝试其他股票</small>';
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error fetching data:', error);
+                                loadingDiv.innerHTML = '<span style="color:#e74c3c">获取数据失败</span><br><small>' + (error.message || '未知错误') + '</small>';
+                            });
+                    })
+                    .catch(error => {
+                        console.error('Error fetching data:', error);
+                        loadingDiv.innerHTML = '<span style="color:#e74c3c">获取数据失败</span><br><small>' + (error.message || '未知错误') + '</small>';
+                    })
+                    .catch(error => {
+                        console.error('Error fetching data:', error);
+                        loadingDiv.innerHTML = '<span style="color:#e74c3c">获取数据失败</span><br><small>' + (error.message || '未知错误') + '</small>';
+                    });
+            };
+            
+            function processStockData(data) {
+                console.log("Processing data:", data);
+                let result = [];
+                let investmentValue = 10000; // 初始投资
+                
+                // 确定日期和收盘价的字段名
+                let dateField = 'date';
+                let closeField = 'close';
+                
+                // 检查第一条数据以确定字段名
+                if (data.length > 0) {
+                    const firstItem = data[0];
+                    
+                    // 检查日期字段
+                    if ('date' in firstItem) {
+                        dateField = 'date';
+                    } else if ('日期' in firstItem) {
+                        dateField = '日期';
+                    } else if ('trade_date' in firstItem) {
+                        dateField = 'trade_date';
+                    } else {
+                        // 尝试查找包含日期的字段
+                        for (const key in firstItem) {
+                            if (key.toLowerCase().includes('date') || key.includes('日期')) {
+                                dateField = key;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // 检查收盘价字段
+                    if ('close' in firstItem) {
+                        closeField = 'close';
+                    } else if ('收盘' in firstItem) {
+                        closeField = '收盘';
+                    } else if ('收盘价' in firstItem) {
+                        closeField = '收盘价';
+                    } else if ('close_price' in firstItem) {
+                        closeField = 'close_price';
+                    } else {
+                        // 尝试查找包含收盘的字段
+                        for (const key in firstItem) {
+                            if (key.toLowerCase().includes('close') || key.includes('收盘')) {
+                                closeField = key;
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                console.log(`Using dateField: ${dateField}, closeField: ${closeField}`);
+                
+                // 优化：预处理数据以减少循环内的计算
+                const processedData = [];
+                
+                // 确保日期格式一致
+                for (let i = 0; i < data.length; i++) {
+                    const item = data[i];
+                    let dateValue = item[dateField];
+                    
+                    // 如果日期是YYYYMMDD格式，转换为YYYY-MM-DD
+                    if (typeof dateValue === 'string' && dateValue.length === 8 && !dateValue.includes('-')) {
+                        dateValue = `${dateValue.substring(0, 4)}-${dateValue.substring(4, 6)}-${dateValue.substring(6, 8)}`;
+                    }
+                    
+                    processedData.push({
+                        originalItem: item,
+                        normalizedDate: dateValue,
+                        dateObj: new Date(dateValue),
+                        closeValue: parseFloat(item[closeField])
+                    });
+                }
+                
+                // 排序数据
+                processedData.sort((a, b) => a.dateObj - b.dateObj);
+                
+                // 计算涨跌幅和累计收益
+                for (let i = 0; i < processedData.length; i++) {
+                    const item = processedData[i];
+                    
+                    // 计算涨跌幅
+                    let changePercent = 0;
+                    if (i > 0) {
+                        const prevClose = processedData[i-1].closeValue;
+                        changePercent = ((item.closeValue - prevClose) / prevClose) * 100;
+                    }
+                    
+                    // 更新累计投资价值
+                    if (i > 0) {
+                        investmentValue *= (1 + (changePercent / 100));
+                    }
+                    
+                    result.push({
+                        date: item.normalizedDate,
+                        changePercent: changePercent.toFixed(2),
+                        accumulatedValue: investmentValue.toFixed(2)
+                    });
+                }
+                
+                return result;
+            }
+            
+            function updateSummary(data, stockName) {
+                if (data.length === 0) return;
+                
+                // 最终累计收益
+                const finalValue = parseFloat(data[data.length - 1].accumulatedValue);
+                const totalReturn = finalValue - 10000;
+                const totalReturnPercent = (totalReturn / 10000) * 100;
+                
+                // 计算年化收益率 (使用交易日数量)
+                const tradingDays = data.length;
+                const annualTradingDays = 252; // 一年约252个交易日
+                const yearsElapsed = tradingDays / annualTradingDays;
+                const annualizedReturn = Math.pow((finalValue / 10000), (1 / yearsElapsed)) - 1;
+                
+                // 更新UI
+                stockNameSpan.textContent = stockName || '未知';
+                
+                const totalReturnText = totalReturn >= 0 ? 
+                    `+${totalReturn.toFixed(2)}元 (${totalReturnPercent.toFixed(2)}%)` : 
+                    `${totalReturn.toFixed(2)}元 (${totalReturnPercent.toFixed(2)}%)`;
+                
+                totalReturnSpan.textContent = totalReturnText;
+                totalReturnSpan.className = totalReturn >= 0 ? 'positive' : 'negative';
+                
+                const annualizedReturnPercent = annualizedReturn * 100;
+                const annualizedReturnText = annualizedReturn >= 0 ?
+                    `+${annualizedReturnPercent.toFixed(2)}%` :
+                    `${annualizedReturnPercent.toFixed(2)}%`;
+                
+                annualizedReturnSpan.textContent = annualizedReturnText;
+                annualizedReturnSpan.className = annualizedReturn >= 0 ? 'positive' : 'negative';
+            }
+            
+            function formatDate(date) {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}${month}${day}`;
+            }
+        });
+    </script>
+</body>
+</html>
