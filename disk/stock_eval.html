@@ -90,6 +90,10 @@
             animation: spin 1s linear infinite;
         }
         
+        .neutral {
+            color: #888;
+        }
+        
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
@@ -155,6 +159,53 @@
         .touch-device button:active {
             opacity: 0.7;
             transform: scale(0.98);
+        }
+        
+        /* 股票选择器样式 */
+        .stock-selector-container {
+            position: relative;
+            width: 100%;
+        }
+        .stock-selector-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        .stock-selector-dropdown {
+            position: absolute;
+            width: 100%;
+            max-height: 300px;
+            overflow-y: auto;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .stock-selector-item {
+            padding: 10px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .stock-selector-item:hover, .stock-selector-item.active {
+            background-color: #f5f5f5;
+        }
+        .stock-code {
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        .stock-name {
+            color: #666;
+        }
+        .no-results {
+            padding: 10px 12px;
+            color: #999;
+            text-align: center;
         }
         
         /* 移动端优化 */
@@ -244,12 +295,17 @@
         </div>
         
         <div class="input-group">
-            <input type="text" id="stockCode" placeholder="输入股票代码 (例如: 000001)" value="000001">
+            <div class="stock-selector-container">
+                <input type="text" id="stockSelector" class="stock-selector-input" placeholder="输入股票代码或名称进行搜索 (例如: 000001 或 平安)" autocomplete="off">
+                <input type="hidden" id="stockCode" value="000001">
+                <div id="stockSelectorDropdown" class="stock-selector-dropdown"></div>
+            </div>
             <select id="adjustType">
                 <option value="qfq">前复权</option>
                 <option value="hfq">后复权</option>
                 <option value="">不复权</option>
             </select>
+            <input type="date" id="startDate" title="收益计算开始日期">
             <button id="fetchData">获取数据</button>
         </div>
         
@@ -273,16 +329,19 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // 设置相关元素
-            const toggleSettingsBtn = document.getElementById('toggleSettings');
-            const settingsContent = document.getElementById('settingsContent');
-            const saveSettingsBtn = document.getElementById('saveSettings');
+            // API设置相关元素
             const apiBaseUrlInput = document.getElementById('apiBaseUrl');
             const apiEndpointInput = document.getElementById('apiEndpoint');
-            
+            const settingsContent = document.getElementById('settingsContent');
+            const toggleSettingsBtn = document.getElementById('toggleSettings');
+            const saveSettingsBtn = document.getElementById('saveSettings');
+
             // 股票数据相关元素
             const stockCodeInput = document.getElementById('stockCode');
+            const stockSelectorInput = document.getElementById('stockSelector');
+            const stockSelectorDropdown = document.getElementById('stockSelectorDropdown');
             const adjustTypeSelect = document.getElementById('adjustType');
+            const startDateInput = document.getElementById('startDate');
             const fetchButton = document.getElementById('fetchData');
             const calendarDiv = document.getElementById('calendar');
             const loadingDiv = document.getElementById('loading');
@@ -304,8 +363,48 @@
             let currentDisplayMonth = new Date().getMonth();
             let currentDisplayYear = new Date().getFullYear();
             
+            // 全局股票名称缓存
+            let globalStockNames = {};
+            
+            // 设置默认开始日期为当年1月1日
+            const today = new Date();
+            const defaultStartDate = new Date(today.getFullYear(), 0, 1);
+            startDateInput.value = formatDate(defaultStartDate);
+            // 从cookie加载设置
+            function loadSettingsFromCookies() {
+                const savedApiBaseUrl = getCookie('apiBaseUrl');
+                const savedApiEndpoint = getCookie('apiEndpoint');
+                const savedStockCode = getCookie('stockCode');
+                const savedAdjustType = getCookie('adjustType');
+                const savedStartDate = getCookie('startDate');
+                
+                if (savedApiBaseUrl) {
+                    apiBaseUrlInput.value = savedApiBaseUrl;
+                }
+                
+                if (savedApiEndpoint) {
+                    apiEndpointInput.value = savedApiEndpoint;
+                }
+                
+                if (savedStockCode) {
+                    stockCodeInput.value = savedStockCode;
+                }
+                
+                if (savedAdjustType) {
+                    adjustTypeSelect.value = savedAdjustType;
+                }
+                
+                if (savedStartDate) {
+                    startDateInput.value = savedStartDate;
+                }
+            }
+            
+            
             // 从cookie加载API设置
             loadSettingsFromCookies();
+            
+            // 检查API设置并预加载股票名称数据
+            checkApiSettingsAndPreloadData();
             
             // 事件监听器
             toggleSettingsBtn.addEventListener('click', toggleSettings);
@@ -314,6 +413,143 @@
             prevMonthBtn.addEventListener('click', () => navigateMonth(-1));
             nextMonthBtn.addEventListener('click', () => navigateMonth(1));
             currentMonthBtn.addEventListener('click', goToCurrentMonth);
+
+            // 股票选择器事件监听
+            stockSelectorInput.addEventListener('input', debounce(handleStockSearch, 300));
+            stockSelectorInput.addEventListener('focus', () => {
+                if (Object.keys(globalStockNames).length > 0 && stockSelectorInput.value.trim().length > 0) {
+                    handleStockSearch();
+                }
+            });
+            stockSelectorInput.addEventListener('blur', () => {
+                // 延迟隐藏下拉框，以便点击下拉项时能够触发点击事件
+                setTimeout(() => {
+                    stockSelectorDropdown.style.display = 'none';
+                }, 200);
+            });
+            
+            // 防抖函数
+            function debounce(func, wait) {
+                let timeout;
+                return function() {
+                    const context = this;
+                    const args = arguments;
+                    clearTimeout(timeout);
+                    timeout = setTimeout(() => {
+                        func.apply(context, args);
+                    }, wait);
+                };
+            }
+            
+            // 处理股票搜索
+            function handleStockSearch() {
+                const query = stockSelectorInput.value.trim().toLowerCase();
+                
+                if (query.length === 0) {
+                    stockSelectorDropdown.style.display = 'none';
+                    return;
+                }
+                
+                // 如果全局股票名称数据为空，尝试加载
+                if (Object.keys(globalStockNames).length === 0) {
+                    const apiBaseUrl = apiBaseUrlInput.value.trim();
+                    preloadStockNames(apiBaseUrl);
+                    stockSelectorDropdown.innerHTML = '<div class="no-results">正在加载股票数据...</div>';
+                    stockSelectorDropdown.style.display = 'block';
+                    return;
+                }
+                
+                // 搜索匹配的股票
+                const matchedStocks = [];
+                
+                for (const code in globalStockNames) {
+                    const name = globalStockNames[code];
+                    
+                    if (code.includes(query) || (name && name.toLowerCase().includes(query))) {
+                        matchedStocks.push({ code, name });
+                    }
+                    
+                    // 限制结果数量，避免性能问题
+                    if (matchedStocks.length >= 50) break;
+                }
+                
+                // 更新下拉框
+                if (matchedStocks.length > 0) {
+                    stockSelectorDropdown.innerHTML = '';
+                    
+                    matchedStocks.forEach(stock => {
+                        const item = document.createElement('div');
+                        item.className = 'stock-selector-item';
+                        item.innerHTML = `<span class="stock-code">${stock.code}</span><span class="stock-name">${stock.name || ''}</span>`;
+                        
+                        item.addEventListener('click', () => {
+                            stockCodeInput.value = stock.code;
+                            stockSelectorInput.value = `${stock.code} ${stock.name || ''}`;
+                            stockSelectorDropdown.style.display = 'none';
+                        });
+                        
+                        stockSelectorDropdown.appendChild(item);
+                    });
+                    
+                    stockSelectorDropdown.style.display = 'block';
+                } else {
+                    stockSelectorDropdown.innerHTML = '<div class="no-results">未找到匹配的股票</div>';
+                    stockSelectorDropdown.style.display = 'block';
+                }
+            }
+            
+
+
+            // 检查API设置并预加载股票名称数据
+            function checkApiSettingsAndPreloadData() {
+                const apiBaseUrl = apiBaseUrlInput.value.trim();
+                const apiEndpoint = apiEndpointInput.value.trim();
+                
+                if (apiBaseUrl && apiEndpoint) {
+                    console.log("API设置已配置，预加载股票名称数据");
+                    // 预加载股票名称数据
+                    preloadStockNames(apiBaseUrl);
+                    
+                    // 设置初始股票选择器值
+                    const savedStockCode = getCookie('stockCode');
+                    if (savedStockCode) {
+                        stockCodeInput.value = savedStockCode;
+                        // 如果已经有股票名称数据，设置显示值
+                        if (globalStockNames[savedStockCode]) {
+                            stockSelectorInput.value = `${savedStockCode} ${globalStockNames[savedStockCode]}`;
+                        } else {
+                            stockSelectorInput.value = savedStockCode;
+                        }
+                    }
+                }
+            }
+            
+            // 预加载股票名称数据
+            function preloadStockNames(apiBaseUrl) {
+                const nameApiUrl = `${apiBaseUrl}/api/public/stock_info_a_code_name`;
+                
+                axios.get(nameApiUrl)
+                    .then(response => {
+                        if (response.data && Array.isArray(response.data)) {
+                            // 将股票代码和名称保存到全局对象中
+                            response.data.forEach(item => {
+                                if (item.code && item.name) {
+                                    globalStockNames[item.code] = item.name;
+                                }
+                            });
+                            console.log("股票名称数据预加载成功，共加载", Object.keys(globalStockNames).length, "条记录");
+                            
+                            // 更新当前选择的股票显示
+                            const currentCode = stockCodeInput.value;
+                            if (currentCode && globalStockNames[currentCode]) {
+                                stockSelectorInput.value = `${currentCode} ${globalStockNames[currentCode]}`;
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('预加载股票名称数据失败:', error);
+                    });
+            }
             
             // 响应窗口大小变化
             window.addEventListener('resize', function() {
@@ -581,7 +817,18 @@
                 
                 // 设置选项并强制重绘
                 myChart.setOption(option, true);
+                // 添加鼠标悬停事件，动态更新收益数据
+                myChart.on('mouseover', function(params) {
+                    if (params.componentType === 'series' && params.seriesType === 'heatmap') {
+                        updateDynamicReturns(params.value[0]);
+                    }
+                });
                 
+                // 添加鼠标离开事件，恢复初始收益数据
+                myChart.on('mouseout', function() {
+                    restoreInitialReturns();
+                });
+
                 // 强制重新计算尺寸
                 setTimeout(() => {
                     if (myChart) {
@@ -589,9 +836,109 @@
                     }
                 }, 50);
             }
+
+            // 动态更新收益数据
+            function updateDynamicReturns(hoverDate) {
+                if (!stockData || stockData.length === 0) return;
+                
+                // 找到开始日期之后的第一个交易日数据
+                const startDateObj = new Date(startDateInput.value);
+                let startIndex = 0;
+                
+                for (let i = 0; i < stockData.length; i++) {
+                    const itemDate = new Date(stockData[i].date);
+                    if (itemDate >= startDateObj) {
+                        startIndex = i;
+                        break;
+                    }
+                }
+                
+                // 如果找不到开始日期之后的数据，使用第一个数据点
+                if (startIndex >= stockData.length) {
+                    startIndex = 0;
+                }
+                
+                // 找到鼠标悬停日期对应的数据点
+                const hoverDateObj = new Date(hoverDate);
+                let hoverIndex = -1;
+                
+                for (let i = 0; i < stockData.length; i++) {
+                    const itemDate = new Date(stockData[i].date);
+                    if (itemDate.toDateString() === hoverDateObj.toDateString()) {
+                        hoverIndex = i;
+                        break;
+                    }
+                }
+                
+                // 如果找到了对应的数据点
+                if (hoverIndex !== -1) {
+                    // 检查悬停日期是否在开始日期之前
+                    if (hoverIndex < startIndex) {
+                        // 如果在开始日期之前，显示0收益
+                        totalReturnSpan.textContent = "0.00%";
+                        totalReturnSpan.className = "neutral"; // 可以添加一个中性的样式
+                        annualizedReturnSpan.textContent = "0.00%";
+                        annualizedReturnSpan.className = "neutral";
+                        return;
+                    }
+                    
+                    const initialValue = 10000; // 初始投资10000元
+                    const hoverValue = stockData[hoverIndex].accumulatedValue;
+                    const totalReturn = ((hoverValue - initialValue) / initialValue * 100).toFixed(2);
+                    
+                    // 计算年化收益率
+                    const firstDate = new Date(stockData[startIndex].date);
+                    const hoverDate = new Date(stockData[hoverIndex].date);
+                    const yearDiff = (hoverDate - firstDate) / (1000 * 60 * 60 * 24 * 365);
+                    
+                    let annualizedReturn;
+                    if (yearDiff > 0) {
+                        annualizedReturn = (Math.pow((hoverValue / initialValue), (1 / yearDiff)) - 1) * 100;
+                        annualizedReturn = annualizedReturn.toFixed(2);
+                    } else {
+                        annualizedReturn = "N/A";
+                    }
+                    
+                    // 更新显示
+                    totalReturnSpan.textContent = `${totalReturn}%`;
+                    totalReturnSpan.className = parseFloat(totalReturn) >= 0 ? 'positive' : 'negative';
+                    
+                    annualizedReturnSpan.textContent = annualizedReturn === "N/A" ? "N/A" : `${annualizedReturn}%`;
+                    if (annualizedReturn !== "N/A") {
+                        annualizedReturnSpan.className = parseFloat(annualizedReturn) >= 0 ? 'positive' : 'negative';
+                    }
+                }
+            }
+            
+            // 恢复初始收益数据
+            function restoreInitialReturns() {
+                if (totalReturnSpan.dataset.initialValue) {
+                    const initialTotalReturn = totalReturnSpan.dataset.initialValue;
+                    totalReturnSpan.textContent = `${initialTotalReturn}%`;
+                    totalReturnSpan.className = parseFloat(initialTotalReturn) >= 0 ? 'positive' : 'negative';
+                }
+                
+                if (annualizedReturnSpan.dataset.initialValue) {
+                    const initialAnnualizedReturn = annualizedReturnSpan.dataset.initialValue;
+                    if (initialAnnualizedReturn === "N/A") {
+                        annualizedReturnSpan.textContent = "N/A";
+                    } else {
+                        annualizedReturnSpan.textContent = `${initialAnnualizedReturn}%`;
+                        annualizedReturnSpan.className = parseFloat(initialAnnualizedReturn) >= 0 ? 'positive' : 'negative';
+                    }
+                }
+            }
             
             // 获取股票名称信息
             function fetchStockName(stockCode) {
+                console.log(stockCode)
+                
+                // 首先检查全局缓存中是否已有该股票名称
+                if (globalStockNames[stockCode]) {
+                    console.log("从缓存获取股票名称:", globalStockNames[stockCode]);
+                    return Promise.resolve(globalStockNames[stockCode]);
+                }
+                
                 const apiBaseUrl = apiBaseUrlInput.value.trim();
                 const nameApiUrl = `${apiBaseUrl}/api/public/stock_info_a_code_name`;
                 
@@ -601,9 +948,10 @@
                             // 查找匹配的股票代码
                             const stockInfo = response.data.find(item => 
                                 item['code'] === stockCode || 
-                                item['code'] === stockCode.padStart(6, '0'));
-                            
+                                item['code'] === stockCode.padStart(6, '0')) ;                            
                             if (stockInfo) {
+                                // 更新全局缓存
+                                globalStockNames[stockCode] = stockInfo['name'];
                                 return stockInfo['name'] || '未知';
                             }
                         }
@@ -620,10 +968,12 @@
                 const apiEndpoint = apiEndpointInput.value.trim();
                 const stockCode = stockCodeInput.value.trim();
                 const adjustType = adjustTypeSelect.value;
+                const startDate = startDateInput.value;
                 
                 // 保存当前输入到cookie
                 setCookie('stockCode', stockCode, 365);
                 setCookie('adjustType', adjustType, 365);
+                setCookie('startDate', startDate, 365);
                 
                 if (!stockCode) {
                     alert('请输入有效的股票代码');
@@ -642,11 +992,9 @@
                 loadingDiv.innerHTML = '正在加载数据...<br><small>请稍候，正在从服务器获取股票数据</small>';
                 summaryDiv.style.display = 'none';
                 
-                // 获取当前年份的1月1日到当前日期
+                // 使用用户选择的开始日期
+                const formattedStartDate = startDate;
                 const currentDate = new Date();
-                const startDate = new Date(currentDate.getFullYear(), 0, 1);
-                
-                const formattedStartDate = formatDate(startDate);
                 const formattedEndDate = formatDate(currentDate);
                 
                 // 构建API URL
@@ -781,141 +1129,132 @@
                         loadingDiv.innerHTML = '<span style="color:#e74c3c">获取数据失败</span><br><small>' + (error.message || '未知错误') + '</small>';
                     });
             };
-            
+
             function processStockData(data) {
-                console.log("Processing data:", data);
-                let result = [];
-                let investmentValue = 10000; // 初始投资
+                // 确保数据按日期排序（从早到晚）
+                data.sort((a, b) => {
+                    const dateA = new Date(a.date || a['日期']);
+                    const dateB = new Date(b.date || b['日期']);
+                    return dateA - dateB;
+                });
                 
-                // 确定日期和收盘价的字段名
-                let dateField = 'date';
-                let closeField = 'close';
+                // 找到开始日期之后的第一个交易日数据
+                const startDateObj = new Date(startDateInput.value);
+                let startIndex = 0;
                 
-                // 检查第一条数据以确定字段名
-                if (data.length > 0) {
-                    const firstItem = data[0];
-                    
-                    // 检查日期字段
-                    if ('date' in firstItem) {
-                        dateField = 'date';
-                    } else if ('日期' in firstItem) {
-                        dateField = '日期';
-                    } else if ('trade_date' in firstItem) {
-                        dateField = 'trade_date';
-                    } else {
-                        // 尝试查找包含日期的字段
-                        for (const key in firstItem) {
-                            if (key.toLowerCase().includes('date') || key.includes('日期')) {
-                                dateField = key;
-                                break;
-                            }
-                        }
-                    }
-                    
-                    // 检查收盘价字段
-                    if ('close' in firstItem) {
-                        closeField = 'close';
-                    } else if ('收盘' in firstItem) {
-                        closeField = '收盘';
-                    } else if ('收盘价' in firstItem) {
-                        closeField = '收盘价';
-                    } else if ('close_price' in firstItem) {
-                        closeField = 'close_price';
-                    } else {
-                        // 尝试查找包含收盘的字段
-                        for (const key in firstItem) {
-                            if (key.toLowerCase().includes('close') || key.includes('收盘')) {
-                                closeField = key;
-                                break;
-                            }
-                        }
+                for (let i = 0; i < data.length; i++) {
+                    const itemDate = new Date(data[i].date || data[i]['日期']);
+                    if (itemDate >= startDateObj) {
+                        startIndex = i;
+                        break;
                     }
                 }
                 
-                console.log(`Using dateField: ${dateField}, closeField: ${closeField}`);
-                
-                // 优化：预处理数据以减少循环内的计算
+                // 处理数据
                 const processedData = [];
+                let previousClose = null;
+                let initialValue = 10000; // 假设初始投资10000元
+                let initialClose = null; // 记录开始日期的收盘价
                 
-                // 确保日期格式一致
                 for (let i = 0; i < data.length; i++) {
                     const item = data[i];
-                    let dateValue = item[dateField];
                     
-                    // 如果日期是YYYYMMDD格式，转换为YYYY-MM-DD
-                    if (typeof dateValue === 'string' && dateValue.length === 8 && !dateValue.includes('-')) {
-                        dateValue = `${dateValue.substring(0, 4)}-${dateValue.substring(4, 6)}-${dateValue.substring(6, 8)}`;
+                    // 提取日期和收盘价
+                    const date = item.date || item['日期'];
+                    const close = parseFloat(item.close || item['收盘']);
+                    
+                    // 记录开始日期的收盘价
+                    if (i === startIndex) {
+                        initialClose = close;
                     }
-                    
-                    processedData.push({
-                        originalItem: item,
-                        normalizedDate: dateValue,
-                        dateObj: new Date(dateValue),
-                        closeValue: parseFloat(item[closeField])
-                    });
-                }
-                
-                // 排序数据
-                processedData.sort((a, b) => a.dateObj - b.dateObj);
-                
-                // 计算涨跌幅和累计收益
-                for (let i = 0; i < processedData.length; i++) {
-                    const item = processedData[i];
                     
                     // 计算涨跌幅
                     let changePercent = 0;
-                    if (i > 0) {
-                        const prevClose = processedData[i-1].closeValue;
-                        changePercent = ((item.closeValue - prevClose) / prevClose) * 100;
+                    if (previousClose !== null) {
+                        changePercent = ((close - previousClose) / previousClose * 100).toFixed(2);
                     }
                     
-                    // 更新累计投资价值
-                    if (i > 0) {
-                        investmentValue *= (1 + (changePercent / 100));
+                    // 计算累计收益
+                    let accumulatedValue;
+                    if (i < startIndex) {
+                        // 开始日期之前的数据，累计收益保持初始值
+                        accumulatedValue = initialValue;
+                    } else if (i === startIndex) {
+                        // 开始日期的第一个交易日，设置为初始值
+                        accumulatedValue = initialValue;
+                    } else {
+                        // 根据与初始收盘价的比例计算累计收益
+                        accumulatedValue = initialValue * (close / initialClose);
                     }
                     
-                    result.push({
-                        date: item.normalizedDate,
-                        changePercent: changePercent.toFixed(2),
-                        accumulatedValue: investmentValue.toFixed(2)
+                    processedData.push({
+                        date: date,
+                        close: close,
+                        changePercent: parseFloat(changePercent),
+                        accumulatedValue: parseFloat(accumulatedValue.toFixed(2))
                     });
+                    
+                    previousClose = close;
                 }
                 
-                return result;
-            }
-            
+                return processedData;
+            }            
+
+            // 更新摘要信息
             function updateSummary(data, stockName) {
-                if (data.length === 0) return;
+                // 显示股票名称
+                const stockCode = stockCodeInput.value.trim();
+                stockNameSpan.textContent = `${stockCode} (${stockName})`;
                 
-                // 最终累计收益
-                const finalValue = parseFloat(data[data.length - 1].accumulatedValue);
-                const totalReturn = finalValue - 10000;
-                const totalReturnPercent = (totalReturn / 10000) * 100;
-                
-                // 计算年化收益率 (使用交易日数量)
-                const tradingDays = data.length;
-                const annualTradingDays = 252; // 一年约252个交易日
-                const yearsElapsed = tradingDays / annualTradingDays;
-                const annualizedReturn = Math.pow((finalValue / 10000), (1 / yearsElapsed)) - 1;
-                
-                // 更新UI
-                stockNameSpan.textContent = stockName || '未知';
-                
-                const totalReturnText = totalReturn >= 0 ? 
-                    `+${totalReturn.toFixed(2)}元 (${totalReturnPercent.toFixed(2)}%)` : 
-                    `${totalReturn.toFixed(2)}元 (${totalReturnPercent.toFixed(2)}%)`;
-                
-                totalReturnSpan.textContent = totalReturnText;
-                totalReturnSpan.className = totalReturn >= 0 ? 'positive' : 'negative';
-                
-                const annualizedReturnPercent = annualizedReturn * 100;
-                const annualizedReturnText = annualizedReturn >= 0 ?
-                    `+${annualizedReturnPercent.toFixed(2)}%` :
-                    `${annualizedReturnPercent.toFixed(2)}%`;
-                
-                annualizedReturnSpan.textContent = annualizedReturnText;
-                annualizedReturnSpan.className = annualizedReturn >= 0 ? 'positive' : 'negative';
-            }
+                // 计算累计收益
+                if (data.length > 0) {
+                    // 找到开始日期之后的第一个交易日数据
+                    const startDateObj = new Date(startDateInput.value);
+                    let startIndex = 0;
+                    
+                    for (let i = 0; i < data.length; i++) {
+                        const itemDate = new Date(data[i].date);
+                        if (itemDate >= startDateObj) {
+                            startIndex = i;
+                            break;
+                        }
+                    }
+                    
+                    // 如果找不到开始日期之后的数据，使用第一个数据点
+                    if (startIndex >= data.length) {
+                        startIndex = 0;
+                    }
+                    
+                    const initialValue = 10000; // 初始投资10000元
+                    const lastValue = data[data.length - 1].accumulatedValue;
+                    const totalReturn = ((lastValue - initialValue) / initialValue * 100).toFixed(2);
+                    
+                    // 计算年化收益率
+                    const firstDate = new Date(data[startIndex].date);
+                    const lastDate = new Date(data[data.length - 1].date);
+                    const yearDiff = (lastDate - firstDate) / (1000 * 60 * 60 * 24 * 365);
+                    
+                    let annualizedReturn;
+                    if (yearDiff > 0) {
+                        annualizedReturn = (Math.pow((lastValue / initialValue), (1 / yearDiff)) - 1) * 100;
+                        annualizedReturn = annualizedReturn.toFixed(2);
+                    } else {
+                        annualizedReturn = "N/A";
+                    }
+                    
+                    // 更新显示
+                    totalReturnSpan.textContent = `${totalReturn}%`;
+                    totalReturnSpan.className = parseFloat(totalReturn) >= 0 ? 'positive' : 'negative';
+                    
+                    annualizedReturnSpan.textContent = annualizedReturn === "N/A" ? "N/A" : `${annualizedReturn}%`;
+                    if (annualizedReturn !== "N/A") {
+                        annualizedReturnSpan.className = parseFloat(annualizedReturn) >= 0 ? 'positive' : 'negative';
+                    }
+                    // 保存初始收益数据，用于恢复显示
+                    totalReturnSpan.dataset.initialValue = totalReturn;
+                    annualizedReturnSpan.dataset.initialValue = annualizedReturn;                    
+                }
+            } 
             
             function formatDate(date) {
                 const year = date.getFullYear();
