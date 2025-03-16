@@ -278,20 +278,36 @@
                                 color: function (params) {
                                     return fixedColorList[params.data[1]]
                                 }
+                            }
+                        },
+                        {
+                            type: 'scatter',
+                            coordinateSystem: 'calendar',
+                            calendarIndex: 0,
+                            data: data.value,
+                            itemStyle: {
+                                color: function (params) {
+                                    return fixedColorList[params.data[1]]
+                                }
                             },
                             label: {
-                                show: true, // 显示文字
+                                show: function(params) {
+                                    // 只在交易日显示标签
+                                    var dateStr = params.data[0];
+                                    return Object.keys(szzs_data).includes(dateStr);
+                                },
                                 formatter: function (params) {
                                     var dateStr = params.data[0];
                                     var changeRate = szzs_data[dateStr]?.['涨跌幅'] || 0;
-                                    return Object.keys(szzs_data).includes(dateStr)? `${changeRate}%` : ''; // 显示涨跌幅
+                                    return `${changeRate}%`;
                                 },
-                                color: '#000', // 文字颜色
-                                fontSize: 10,  // 文字大小
-                                fontWeight: 'bold', // 字体加粗
-                                position: 'inside', // 文字显示在格子内部
+                                color: '#000',
+                                fontSize: 10,
+                                fontWeight: 'bold',
+                                position: 'inside'
                             }
-                        }]
+                        }
+                    ]
                     };
                     chartInstance.setOption(option);
                     chartInstance.on('click', function (params) {
