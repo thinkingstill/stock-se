@@ -984,7 +984,11 @@
                     alert('请输入有效的API基础URL');
                     return;
                 }
-                
+
+                // 清空之前的数据和缓存
+                stockData = [];
+                window.dataCache = {};
+                            
                 // 显示加载状态
                 calendarDiv.style.display = 'none';
                 dateNavDiv.style.display = 'none';
